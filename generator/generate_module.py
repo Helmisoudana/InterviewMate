@@ -152,7 +152,7 @@ def generate(name: str, with_api: bool, with_domain_services: bool):
         base / "domain" / "entities",
         base / "domain" / "value_objects",
         base / "application" / "ports",
-        base / "application" / "ports" / "inbound",
+        base / "application" / "ports" ,
         base / "application" / "use_cases",
         base / "infrastructure" / "adapters",
         base / "infrastructure" / "fakes",
