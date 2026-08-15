@@ -27,8 +27,16 @@ async def run():
         scoring_notifier=FakeScoringNotifierAdapter(),
     )
 
-    question = await use_case.traiter_reponse_candidat("session-test-001", "Bonjour, je suis pret")
-    print(f"Question generee : {question}")
+    session_id = "session-test-001"
+
+    # Premier tour : pas encore d'echange precedent
+    question_1 = await use_case.traiter_reponse_candidat(session_id, "Bonjour, je suis pret")
+    print(f"Tour 1 - Question generee : {question_1}")
+
+    # Deuxieme tour : le candidat repond a la question 1,
+    # on doit retrouver l'echange precedent et notifier scoring
+    question_2 = await use_case.traiter_reponse_candidat(session_id, "Une liste est mutable, un tuple ne l'est pas")
+    print(f"Tour 2 - Question generee : {question_2}")
 
 
 def main():
