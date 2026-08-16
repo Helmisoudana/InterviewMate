@@ -14,7 +14,7 @@ Lancer avec :
 """
 import asyncio
 
-from agent.infrastructure.fakes.fake_llm_adapter import FakeLLMAdapter
+from agent.infrastructure.adapters.ollama_adapter import OllamaAdapter
 from agent.infrastructure.fakes.fake_session_repository_adapter import FakeSessionRepositoryAdapter
 from agent.infrastructure.fakes.fake_scoring_notifier_adapter import FakeScoringNotifierAdapter
 from agent.application.use_cases.conduire_entretien import ConduireEntretienUseCase
@@ -22,21 +22,32 @@ from agent.application.use_cases.conduire_entretien import ConduireEntretienUseC
 
 async def run():
     use_case = ConduireEntretienUseCase(
-        llm=FakeLLMAdapter(),
+        llm=OllamaAdapter(),
         session_repo=FakeSessionRepositoryAdapter(),
         scoring_notifier=FakeScoringNotifierAdapter(),
     )
 
-    session_id = "session-test-001"
+    session_id = "session-interactive-001"
 
-    # Premier tour : pas encore d'echange precedent
-    question_1 = await use_case.traiter_reponse_candidat(session_id, "Bonjour, je suis pret")
-    print(f"Tour 1 - Question generee : {question_1}")
+    print("=== Simulation d'entretien InterviewMate ===")
+    print("Tape tes reponses comme si tu etais le candidat. L'entretien s'arrete automatiquement a la fin.\n")
 
-    # Deuxieme tour : le candidat repond a la question 1,
-    # on doit retrouver l'echange precedent et notifier scoring
-    question_2 = await use_case.traiter_reponse_candidat(session_id, "Une liste est mutable, un tuple ne l'est pas")
-    print(f"Tour 2 - Question generee : {question_2}")
+    reponse_candidat = "Bonjour, je suis pret a commencer."
+
+    while True:
+        question, est_termine = await use_case.traiter_reponse_candidat(session_id, reponse_candidat)
+
+        interview_actuelle = await use_case.session_repo.get(session_id)
+        print(f"\n[DEBUG] Phase actuelle : {interview_actuelle.phase_actuelle.value}")
+        print(f"[DEBUG] Difficulte actuelle : {interview_actuelle.difficulte_actuelle.value}")
+        print(f"[DEBUG] Nombre d'echanges : {len(interview_actuelle.echanges)}")
+
+        if est_termine:
+            print("\n=== Entretien termine. Merci d'avoir participe. ===")
+            break
+
+        print(f"\nRecruteur : {question}")
+        reponse_candidat = input("Ta reponse : ")
 
 
 def main():

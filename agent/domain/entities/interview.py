@@ -39,10 +39,22 @@ ORDRE_PHASES = [
 ]
 
 
+def evaluer_qualite_reponse(texte_reponse: str) -> str:
+    texte = texte_reponse.strip().lower()
+    mots_vagues = ["je ne sais pas", "peut-etre", "je pense que", "pas sur", "aucune idee"]
+
+    if len(texte) < 20 or any(mot in texte for mot in mots_vagues):
+        return "vague"
+    if len(texte) > 150:
+        return "excellente"
+    return "correcte"
+
+
 @dataclass
 class Interview:
     phase_actuelle: InterviewPhase = InterviewPhase.INTRO
     difficulte_actuelle: DifficultyLevel = DifficultyLevel.MOYEN
+    langue: str = "francais"
     echanges: list[Echange] = field(default_factory=list)
 
     def questions_deja_posees(self) -> list[str]:
@@ -80,8 +92,14 @@ class Interview:
 
     def vers_prompt_systeme(self) -> str:
         historique = "\n".join(f"- {q}" for q in self.questions_deja_posees()) or "Aucune question posee pour le moment."
+        instruction_langue = (
+            "Tu dois repondre UNIQUEMENT en francais, sans aucun mot d'anglais."
+            if self.langue == "francais"
+            else "You must respond ONLY in English, no other language."
+        )
         return (
             f"Tu es un recruteur technique qui mene un entretien d'embauche.\n\n"
+            f"{instruction_langue}\n\n"
             f"Phase actuelle : {self.phase_actuelle.value}\n"
             f"Niveau de difficulte : {self.difficulte_actuelle.value}\n\n"
             f"Questions deja posees (ne jamais les reposer) :\n{historique}\n\n"
