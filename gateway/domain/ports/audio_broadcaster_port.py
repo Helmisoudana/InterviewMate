@@ -1,7 +1,7 @@
 from typing import Protocol
 
-from gateway.domain.value_objects.session_id import SessionId
-from gateway.domain.value_objects.audio_chunk import AudioChunk
+from domain.value_objects.session_id import SessionId
+from domain.value_objects.audio_chunk import AudioChunk
 
 
 class AudioBroadcasterPort(Protocol):
