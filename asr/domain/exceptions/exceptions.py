@@ -1,0 +1,2 @@
+class SessionASRInconnue(Exception):
+    pass
