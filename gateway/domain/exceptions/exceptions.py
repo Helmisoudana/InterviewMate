@@ -4,3 +4,6 @@ class SessionNonActiveError(Exception):
 
 class SessionFermeeError(Exception):
     pass
+
+class SessionInvalideError(Exception):
+    pass

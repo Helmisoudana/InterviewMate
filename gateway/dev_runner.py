@@ -1,30 +1,27 @@
-"""
-Point d'entrée LOCAL du module `gateway`.
+import asyncio
 
-Ce fichier n'est PAS un point d'entrée de production (celui-ci est unique
-et se trouve à la racine du projet : main.py). Il sert uniquement à faire
-tourner ou tester ce module de façon isolée, pendant le développement,
-sans dépendre des autres modules ni du container.py global.
-
-Utilise les adapters "Fake" du module (infrastructure/fakes/) plutôt que
-les vrais adapters externes, pour rester rapide et indépendant.
-
-Lancer avec :
-    python -m gateway.dev_runner
-"""
+from  domain.value_objects.session_id import SessionId
+from  domain.value_objects.audio_chunk import AudioChunk
+from  infrastructure.adapters.in_process_asr_client import InProcessASRClient
+from  infrastructure.adapters.in_process_tts_client import InProcessTTSClient
+from  infrastructure.engines.stub_asr_engine import StubASREngine
+from  infrastructure.engines.stub_tts_engine import StubTTSEngine
 
 
-def main():
-    # TODO: instancier ici les Fakes du module et le(s) use case(s) à tester
-    # Exemple :
-    #   from gateway.infrastructure.fakes.fake_adapter import Fake...Adapter
-    #   from gateway.application.use_cases.... import ...UseCase
-    #
-    #   use_case = ...UseCase(dependency=Fake...Adapter())
-    #   result = use_case.execute(...)
-    #   print(result)
-    print("dev_runner de 'gateway' — à compléter au fil du développement du module.")
+async def main():
+    session_id = SessionId("demo-001")
 
+    asr_client = InProcessASRClient(StubASREngine())
+    resultats_recus = []
+    asr_client.souscrire_resultats(session_id, callback=lambda r: resultats_recus.append(r) or asyncio.sleep(0))
 
-if __name__ == "__main__":
-    main()
+    chunk = AudioChunk(data=b"\x00" * 320, sequence_number=1)
+    await asr_client.envoyer_chunk(session_id, chunk)
+    await asr_client.signaler_fin_de_tour(session_id)
+    print(resultats_recus)  # [partial, final]
+
+    tts_client = InProcessTTSClient(StubTTSEngine())
+    async for audio_bytes in tts_client.synthetiser_stream(session_id, "Bonjour"):
+        print(f"chunk reçu : {len(audio_bytes)} octets")
+
+asyncio.run(main())

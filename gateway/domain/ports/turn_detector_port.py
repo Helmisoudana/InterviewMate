@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from gateway.domain.value_objects.audio_chunk import AudioChunk
+from domain.value_objects.audio_chunk import AudioChunk
 
 
 class TurnDetectorPort(Protocol):

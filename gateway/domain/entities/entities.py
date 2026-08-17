@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from gateway.domain.value_objects.session_id import SessionId
-from gateway.domain.value_objects.enums import ConnectionState, TurnState
+from domain.value_objects.session_id import SessionId
+from domain.value_objects.enums import ConnectionState, TurnState
 
-from gateway.domain.exceptions.exceptions import SessionFermeeError , SessionNonActiveError
+from domain.exceptions.exceptions import SessionFermeeError , SessionNonActiveError
 
 class GatewaySession:
     

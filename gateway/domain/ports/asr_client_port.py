@@ -1,9 +1,15 @@
-from typing import Protocol
+from typing import Awaitable, Callable, Protocol
 
-from gateway.domain.value_objects.session_id import SessionId
-from gateway.domain.value_objects.audio_chunk import AudioChunk
+from domain.value_objects.session_id import SessionId
+from domain.value_objects.audio_chunk import AudioChunk
+from domain.value_objects.transcription_result import TranscriptionResult
+
+ResultCallback = Callable[[TranscriptionResult], Awaitable[None]]
 
 
 class ASRClientPort(Protocol):
+    async def demarrer_session(self, session_id: SessionId, language: str) -> None: ...
     async def envoyer_chunk(self, session_id: SessionId, chunk: AudioChunk) -> None: ...
     async def signaler_fin_de_tour(self, session_id: SessionId) -> None: ...
+    async def terminer_session(self, session_id: SessionId) -> None: ...
+    def souscrire_resultats(self, session_id: SessionId, callback: ResultCallback) -> None: ...
