@@ -10,3 +10,4 @@ class SpeechRecognizerPort(Protocol):
 
     async def transcrire_final(self, audio_buffer: bytes, language: str) -> TranscriptionResult:
         ...
+        
