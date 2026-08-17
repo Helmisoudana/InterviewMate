@@ -13,16 +13,15 @@ class Question:
 @dataclass
 class Reponse:
     texte: str
-    qualite_percue: str | None = None  # "vague", "correcte", "excellente" — ou None si pas encore evaluee
+    qualite_percue: str | None = None
 
 
 @dataclass
 class Echange:
     question: Question
-    reponse: Reponse | None = None  # None tant que le candidat n'a pas encore repondu
+    reponse: Reponse | None = None
 
 
-# Combien de questions on pose avant de changer de phase
 QUESTIONS_PAR_PHASE = {
     InterviewPhase.INTRO: 1,
     InterviewPhase.TECHNIQUE: 4,
@@ -30,7 +29,6 @@ QUESTIONS_PAR_PHASE = {
     InterviewPhase.CLOTURE: 1,
 }
 
-# L'ordre dans lequel les phases s'enchainent
 ORDRE_PHASES = [
     InterviewPhase.INTRO,
     InterviewPhase.TECHNIQUE,
@@ -55,8 +53,20 @@ class Interview:
     phase_actuelle: InterviewPhase = InterviewPhase.INTRO
     difficulte_actuelle: DifficultyLevel = DifficultyLevel.MOYEN
     langue: str = "francais"
+    persona: str = "bienveillant"
     echanges: list[Echange] = field(default_factory=list)
+    nb_refus_consecutifs: int = 0
 
+    def signaler_refus(self) -> None:
+        self.nb_refus_consecutifs += 1
+
+    def reinitialiser_refus(self) -> None:
+        self.nb_refus_consecutifs = 0
+
+    def doit_arreter_anticipativement(self) -> bool:
+        return self.nb_refus_consecutifs >= 2
+
+    # Puis le reste de tes méthodes
     def questions_deja_posees(self) -> list[str]:
         return [e.question.texte for e in self.echanges]
 
@@ -92,17 +102,48 @@ class Interview:
 
     def vers_prompt_systeme(self) -> str:
         historique = "\n".join(f"- {q}" for q in self.questions_deja_posees()) or "Aucune question posee pour le moment."
+
         instruction_langue = (
-            "Tu dois repondre UNIQUEMENT en francais, sans aucun mot d'anglais."
+            "Tu dois t'exprimer exclusivement en francais, avec un vocabulaire naturel et professionnel."
             if self.langue == "francais"
-            else "You must respond ONLY in English, no other language."
+            else "You must express yourself exclusively in English, with natural and professional vocabulary."
         )
-        return (
-            f"Tu es un recruteur technique qui mene un entretien d'embauche.\n\n"
-            f"{instruction_langue}\n\n"
-            f"Phase actuelle : {self.phase_actuelle.value}\n"
-            f"Niveau de difficulte : {self.difficulte_actuelle.value}\n\n"
-            f"Questions deja posees (ne jamais les reposer) :\n{historique}\n\n"
-            f"Pose UNE seule question, adaptee a la phase et au niveau de difficulte actuels.\n"
-            f"Reponds uniquement avec le texte de la question, sans autre commentaire."
-        )
+
+        tons_persona = {
+            "bienveillant": "Ton style est chaleureux, encourageant, tu mets le candidat en confiance sans jamais perdre ton exigence professionnelle.",
+            "exigeant": "Ton style est direct et rigoureux, tu challenges le candidat avec des questions precises et sans complaisance.",
+            "neutre": "Ton style est professionnel, factuel, sans emotion superflue.",
+        }
+        instruction_ton = tons_persona.get(self.persona, tons_persona["neutre"])
+
+        return f"""### ROLE ###
+Tu incarnes un recruteur technique senior menant un entretien d'embauche en temps reel.
+{instruction_ton}
+{instruction_langue}
+
+### CONTEXTE ACTUEL DE L'ENTRETIEN ###
+Phase : {self.phase_actuelle.value}
+Niveau de difficulte : {self.difficulte_actuelle.value}
+Questions deja posees (interdiction absolue de les reposer sous une forme identique ou reformulee) :
+{historique}
+
+### TA MISSION A CHAQUE TOUR ###
+1. Analyse la reponse du candidat que tu viens de recevoir.
+2. Juge sa qualite avec exigence : une reponse vague, evasive ou trop courte est "vague" ;
+   une reponse solide et argumentee est "correcte" ; une reponse qui demontre une vraie
+   maitrise et va au-dela de l'attendu est "excellente".
+3. Detecte si le message contient un comportement inapproprie (insultes, propos
+   deplaces, hors-sujet volontaire, contenu choquant).
+4. Formule UNE seule question suivante, pertinente, adaptee a la phase et a la
+   difficulte actuelles, qui fait progresser naturellement l'entretien.
+
+### FORMAT DE SORTIE OBLIGATOIRE ###
+Reponds UNIQUEMENT avec un objet JSON valide, rien d'autre avant ou apres,
+aucune phrase d'introduction, aucun commentaire. Exemple de format attendu :
+
+{{"qualite": "correcte", "comportement_inapproprie": false, "question": "Pouvez-vous decrire un defi technique que vous avez recemment resolu ?"}}
+
+### RAPPELS CRITIQUES ###
+- Le champ "qualite" doit etre exactement "vague", "correcte" ou "excellente".
+- Le champ "comportement_inapproprie" doit etre un booleen true ou false, jamais une chaine.
+- Aucun texte en dehors de l'objet JSON, sous aucun pretexte."""

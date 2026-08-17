@@ -47,7 +47,12 @@ async def run():
             break
 
         print(f"\nRecruteur : {question}")
-        reponse_candidat = input("Ta reponse : ")
+
+        try:
+            reponse_candidat = input("Ta reponse : ")
+        except (EOFError, KeyboardInterrupt):
+            print("\n=== Saisie interrompue, fin de la simulation. ===")
+            break
 
 
 def main():
