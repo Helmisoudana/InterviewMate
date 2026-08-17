@@ -1,5 +1,9 @@
 import json
-from agent.domain.entities.interview import Interview, Question, Reponse, Echange
+from agent.domain.entities.interview import Interview
+from agent.domain.entities.question import Question
+from agent.domain.entities.reponse import Reponse
+from agent.domain.entities.echange import Echange
+from agent.domain.services.system_prompt_builder import construire_prompt_systeme
 from agent.domain.ports.llm_port import LLMPort, Message
 from agent.domain.ports.session_repository_port import SessionRepositoryPort
 from agent.domain.ports.scoring_notifier_port import ScoringNotifierPort
@@ -32,7 +36,7 @@ class ConduireEntretienUseCase:
     async def traiter_reponse_candidat(self, session_id: str, texte_reponse: str) -> tuple[str, bool]:
         interview = await self.session_repo.get(session_id)
 
-        prompt_systeme = interview.vers_prompt_systeme()
+        prompt_systeme = construire_prompt_systeme(interview)
         messages = [
             Message(role="system", content=prompt_systeme),
             Message(role="user", content=texte_reponse),
