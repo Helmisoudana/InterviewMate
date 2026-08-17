@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Message:
-    role: str       # "system", "user", "assistant"
+    role: str       
     content: str
 
 

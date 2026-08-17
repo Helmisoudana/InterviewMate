@@ -1,4 +1,20 @@
+<<<<<<< HEAD
 .venv
 .vscode
 */__pycache__
 */*/__pycache__
+=======
+__pycache__/
+*.pyc.env
+venv/
+.venv/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+logs/
+.pytest_cache/
+.coverage
+htmlcov/
+>>>>>>> 1cfa20754939a3b5a640cfe703c5150caeedbc89

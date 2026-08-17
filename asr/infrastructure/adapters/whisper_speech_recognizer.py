@@ -8,7 +8,7 @@ from faster_whisper import WhisperModel
 from domain.value_objects.transcription_result import TranscriptionResult
 
 SAMPLE_RATE = 16_000
-OCTETS_PAR_ECHANTILLON = 2  # PCM 16 bits
+OCTETS_PAR_ECHANTILLON = 2  
 DUREE_MIN_SECONDES = 0.3
 
 
@@ -80,7 +80,7 @@ class WhisperSpeechRecognizer:
         return self._construire_resultat(segments, "final")
 
     def _construire_resultat(self, segments, type_: str) -> TranscriptionResult:
-        segments = list(segments)  # le générateur doit être consommé dans le thread
+        segments = list(segments) 
         if not segments:
             return TranscriptionResult(type=type_, text="", confidence=0.0)
 

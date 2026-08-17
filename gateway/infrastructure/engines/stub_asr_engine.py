@@ -7,7 +7,6 @@ from  domain.value_objects.transcription_result import TranscriptionResult
 
 
 class StubASREngine:
-    """Moteur factice : renvoie un texte fixe, juste pour tester le câblage."""
 
     async def demarrer_session(self, session_id: SessionId, language: str) -> None:
         pass
