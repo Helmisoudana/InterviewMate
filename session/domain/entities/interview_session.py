@@ -3,14 +3,14 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import List
 
-from session.domain.value_objects.session_id import SessionId
+from shared.domain import SessionID
 from session.domain.value_objects.session_config import SessionConfig
 from session.domain.value_objects.exchange import Exchange
 from session.domain.value_objects.phase import Phase
 
 
 class InterviewSession:
-    def __init__(self, session_id: SessionId, config: SessionConfig) -> None:
+    def __init__(self, session_id: SessionID, config: SessionConfig) -> None:
         self.session_id = session_id
         self.config = config
         self.phase = Phase.INTRODUCTION

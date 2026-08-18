@@ -5,43 +5,56 @@ from agent.domain.entities.question import Question
 from agent.domain.entities.echange import Echange
 from agent.domain.value_objects.interview_phase import InterviewPhase, DifficultyLevel
 from agent.domain.value_objects.message import Message
+from agent.application.use_cases.start_session import StartAgentSessionUseCase
 from agent.application.use_cases.conduire_entretien import ConduireEntretienUseCase
+from agent.application.use_cases.end_session import EndAgentSessionUseCase
 from agent.domain.ports.llm_port import LLMPort
 from agent.domain.ports.session_repository_port import SessionRepositoryPort
 from agent.domain.ports.scoring_notifier_port import ScoringNotifierPort
-from agent.infrastructure.adapters.gateway_engine_adapter import AgentGatewayEngineAdapter
 from agent.infrastructure.adapters.session_registry import AgentSessionRegistry
+from gateway.infrastructure.adapters.in_process_agent_client import InProcessAgentClient
+from shared.domain import SessionID
 
 
 @pytest.mark.asyncio
 async def test_gateway_adapter_cycle_de_vie_complet():
-    adapter = AgentGatewayEngineAdapter(
-        registry=AgentSessionRegistry(),
-        llm=FakeLLM([{"qualite": "correcte", "comportement_inapproprie": False, "question": "Premiere question"}]),
-        session_repo=FakeSessionRepo(),
-        scoring_notifier=FakeScoringNotifier(),
-    )
+    registry = AgentSessionRegistry()
+    session_repo = FakeSessionRepo()
+    llm = FakeLLM([{"qualite": "correcte", "comportement_inapproprie": False, "question": "Premiere question"}])
+    scoring_notifier = FakeScoringNotifier()
 
-    await adapter.demarrer_session("session-gw-1")
-    question, termine = await adapter.traiter_reponse("session-gw-1", "Bonjour")
+    start_uc = StartAgentSessionUseCase(session_repo, registry)
+    conduire_uc = ConduireEntretienUseCase(llm, session_repo, scoring_notifier, registry)
+    end_uc = EndAgentSessionUseCase(registry)
+
+    client = InProcessAgentClient(start_uc, conduire_uc, end_uc)
+    session_id = SessionID("session-gw-1")
+
+    await client.demarrer_session(session_id)
+    question, termine = await client.traiter_reponse(session_id, "Bonjour")
 
     assert question == "Premiere question"
     assert termine is False
 
-    await adapter.terminer_session("session-gw-1")
+    await client.terminer_session(session_id)
 
 
 @pytest.mark.asyncio
 async def test_gateway_adapter_refuse_session_inconnue():
-    adapter = AgentGatewayEngineAdapter(
-        registry=AgentSessionRegistry(),
-        llm=FakeLLM([{"qualite": "correcte", "comportement_inapproprie": False, "question": "Question"}]),
-        session_repo=FakeSessionRepo(),
-        scoring_notifier=FakeScoringNotifier(),
-    )
+    registry = AgentSessionRegistry()
+    session_repo = FakeSessionRepo()
+    llm = FakeLLM([{"qualite": "correcte", "comportement_inapproprie": False, "question": "Question"}])
+    scoring_notifier = FakeScoringNotifier()
+
+    start_uc = StartAgentSessionUseCase(session_repo, registry)
+    conduire_uc = ConduireEntretienUseCase(llm, session_repo, scoring_notifier, registry)
+    end_uc = EndAgentSessionUseCase(registry)
+
+    client = InProcessAgentClient(start_uc, conduire_uc, end_uc)
+    session_id = SessionID("session-jamais-demarree")
 
     with pytest.raises(ValueError):
-        await adapter.traiter_reponse("session-jamais-demarree", "Bonjour")
+        await client.traiter_reponse(session_id, "Bonjour")
 
 class FakeLLM(LLMPort):
     def __init__(self, reponses: list[dict]):

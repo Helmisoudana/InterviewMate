@@ -8,15 +8,24 @@ from agent.domain.ports.llm_port import LLMPort
 from agent.domain.ports.session_repository_port import SessionRepositoryPort
 from agent.domain.ports.scoring_notifier_port import ScoringNotifierPort
 from agent.domain.value_objects.message import Message
+from agent.infrastructure.adapters.session_registry import AgentSessionRegistry
+from shared.domain import SessionID
 
 MAX_TENTATIVES_REGENERATION = 3
 
 
 class ConduireEntretienUseCase:
-    def __init__(self, llm: LLMPort, session_repo: SessionRepositoryPort, scoring_notifier: ScoringNotifierPort):
+    def __init__(
+        self,
+        llm: LLMPort,
+        session_repo: SessionRepositoryPort,
+        scoring_notifier: ScoringNotifierPort,
+        registry: AgentSessionRegistry | None = None,
+    ):
         self.llm = llm
         self.session_repo = session_repo
         self.scoring_notifier = scoring_notifier
+        self.registry = registry
 
     async def _appeler_llm(self, messages: list[Message]) -> dict:
         texte = ""
@@ -34,11 +43,15 @@ class ConduireEntretienUseCase:
                 return resultat
         raise ValueError(f"Impossible de generer une question inedite apres {MAX_TENTATIVES_REGENERATION} tentatives")
 
-    async def traiter_reponse_candidat(self, session_id: str, texte_reponse: str) -> tuple[str, bool]:
-        interview = await self.session_repo.get(session_id)
+    async def traiter_reponse_candidat(self, session_id: SessionID | str, texte_reponse: str) -> tuple[str, bool]:
+        session_id_str = session_id.value if isinstance(session_id, SessionID) else session_id
+        if self.registry is not None and not self.registry.est_active(session_id_str):
+            raise ValueError(f"Session Agent inconnue ou inactive : {session_id_str}")
+        
+        interview = await self.session_repo.get(session_id_str)
 
         if interview.est_terminee():
-            await self.session_repo.save(session_id, interview)
+            await self.session_repo.save(session_id_str, interview)
             return "", True
 
         prompt_systeme = construire_prompt_systeme(interview)
@@ -56,7 +69,7 @@ class ConduireEntretienUseCase:
         if interview.echanges:
             interview.echanges[-1].reponse = Reponse(texte=texte_reponse, qualite_percue=qualite)
             interview.ajuster_difficulte(qualite)
-            await self.scoring_notifier.notifier_echange_termine(session_id, interview.echanges[-1])
+            await self.scoring_notifier.notifier_echange_termine(session_id_str, interview.echanges[-1])
 
         if comportement_inapproprie:
             interview.signaler_refus()
@@ -64,19 +77,19 @@ class ConduireEntretienUseCase:
             interview.reinitialiser_refus()
 
         if interview.doit_arreter_anticipativement():
-            await self.session_repo.save(session_id, interview)
+            await self.session_repo.save(session_id_str, interview)
             return "Entretien interrompu suite a un comportement inapproprie repete.", True
 
         if interview.doit_changer_de_phase():
             interview.passer_phase_suivante()
 
         if interview.est_terminee():
-            await self.session_repo.save(session_id, interview)
+            await self.session_repo.save(session_id_str, interview)
             return "", True
 
         nouvelle_question = Question(texte=nouvelle_question_texte, phase=interview.phase_actuelle)
         interview.echanges.append(Echange(question=nouvelle_question))
 
-        await self.session_repo.save(session_id, interview)
+        await self.session_repo.save(session_id_str, interview)
 
         return nouvelle_question_texte, False

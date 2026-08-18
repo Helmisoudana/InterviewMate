@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from domain.value_objects.session_id import SessionId
-from domain.value_objects.enums import ConnectionState, TurnState
+from shared.domain import SessionID
+from gateway.domain.value_objects.enums import ConnectionState, TurnState
 
-from domain.exceptions.exceptions import SessionFermeeError , SessionNonActiveError
+from gateway.domain.exceptions.exceptions import SessionFermeeError , SessionNonActiveError
 
 class GatewaySession:
     
 
-    def __init__(self, session_id: SessionId) -> None:
+    def __init__(self, session_id: SessionID) -> None:
         self.session_id = session_id
         self.connection_state = ConnectionState.CONNECTING
         self.turn_state = TurnState.SILENT

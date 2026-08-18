@@ -1,7 +1,7 @@
-from domain.entities.entities import GatewaySession
-from domain.ports.agent_client_port import AgentClientPort
-from domain.ports.audio_broadcaster_port import AudioBroadcasterPort
-from application.use_cases.request_voice_response import RequestVoiceResponseUseCase
+from gateway.domain.entities.entities import GatewaySession
+from gateway.domain.ports.agent_client_port import AgentClientPort
+from gateway.domain.ports.audio_broadcaster_port import AudioBroadcasterPort
+from gateway.application.use_cases.request_voice_response import RequestVoiceResponseUseCase
 
 
 class HandleTranscriptionResultUseCase:

@@ -1,15 +1,13 @@
 
 from __future__ import annotations
-from domain.value_objects.session_id import SessionId 
-from domain.value_objects.audio_chunk import AudioChunk
-from domain.value_objects.session_id import SessionId
-from domain.exceptions.exceptions import SessionASRInconnue
+from shared.domain import SessionID 
+from shared.domain import AudioChunk
 
 
 
 
 class ASRSession:
-    def __init__(self, session_id: SessionId, language: str) -> None:
+    def __init__(self, session_id: SessionID, language: str) -> None:
         self.session_id = session_id
         self.language = language
         self._buffer: bytearray = bytearray()

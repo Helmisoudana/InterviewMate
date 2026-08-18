@@ -1,9 +1,0 @@
-from typing import AsyncIterator, Protocol
-
-from domain.value_objects.session_id import SessionId
-
-
-class TTSEngine(Protocol):
-    async def demarrer_session(self, session_id: SessionId, voice: str) -> None: ...
-    def synthetiser(self, session_id: SessionId, texte: str) -> AsyncIterator[bytes]: ...
-    async def terminer_session(self, session_id: SessionId) -> None: ...

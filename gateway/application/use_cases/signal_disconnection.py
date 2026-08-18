@@ -1,5 +1,5 @@
-from domain.entities.entities import GatewaySession
-from domain.ports.session_client_port import SessionClientPort
+from gateway.domain.entities.entities import GatewaySession
+from gateway.domain.ports.session_client_port import SessionClientPort
 
 
 class SignalDisconnectionUseCase:

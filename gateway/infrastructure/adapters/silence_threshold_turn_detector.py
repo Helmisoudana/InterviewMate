@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from domain.value_objects.audio_chunk import AudioChunk
+from shared.domain import AudioChunk
 
 
 class SilenceThresholdTurnDetector:

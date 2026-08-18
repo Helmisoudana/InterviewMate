@@ -1,25 +1,20 @@
-"""Teste avec le vrai moteur Piper. Lance : python -m tts.dev_runner_real (depuis la racine)"""
+"""Teste avec le vrai moteur Piper. Lance : python -m tts.dev_runner (depuis la racine)"""
 import asyncio
 import wave
 
-from composition_root import construire_tts_engine
-from domain.value_objects.session_id import SessionId as TTSSessionId
-
-
-class FauxSessionId:
-    def __init__(self, value):
-        self.value = value
+from tts.composition_root import TTSContainer
+from shared.domain import SessionID as TTSSessionId
 
 
 async def main() -> None:
-    engine = construire_tts_engine(voices_dir=".")
-    session_id = FauxSessionId("test-piper-001")
+    container = TTSContainer(voices_dir=".")
+    session_id = TTSSessionId("test-piper-001")
 
-    await engine.demarrer_session(session_id, voice="fr_FR-siwis-medium")
+    container.start_session.executer(session_id, voice="fr_FR-siwis-medium")
 
     tous_les_octets = bytearray()
-    async for chunk in engine.synthetiser(session_id, "Bonjour, pouvez-vous vous présenter ?"):
-        tous_les_octets.extend(chunk)
+    async for chunk in container.synthesize_text.executer(session_id, "Bonjour, pouvez-vous vous présenter ?"):
+        tous_les_octets.extend(chunk.data)
 
     with wave.open("sortie_test.wav", "wb") as wav:
         wav.setnchannels(1)
@@ -28,7 +23,7 @@ async def main() -> None:
         wav.writeframes(bytes(tous_les_octets))
 
     print(f"Généré : sortie_test.wav ({len(tous_les_octets)} octets)")
-    await engine.terminer_session(session_id)
+    container.end_session.executer(session_id)
 
 
 if __name__ == "__main__":

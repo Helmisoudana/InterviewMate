@@ -5,7 +5,7 @@ import asyncio
 import numpy as np
 from faster_whisper import WhisperModel
 
-from domain.value_objects.transcription_result import TranscriptionResult
+from shared.domain import SessionID, TranscriptionResult
 
 SAMPLE_RATE = 16_000
 OCTETS_PAR_ECHANTILLON = 2  
@@ -43,19 +43,19 @@ class WhisperSpeechRecognizer:
         return audio[-taille_max:]
 
 
-    async def transcrire_partiel(self, audio_buffer: bytes, language: str) -> TranscriptionResult:
-        return await asyncio.to_thread(self._transcrire_partiel_sync, audio_buffer, language)
+    async def transcrire_partiel(self, session_id: SessionID, audio_buffer: bytes, language: str) -> TranscriptionResult:
+        return await asyncio.to_thread(self._transcrire_partiel_sync, session_id, audio_buffer, language)
 
-    async def transcrire_final(self, audio_buffer: bytes, language: str) -> TranscriptionResult:
-        return await asyncio.to_thread(self._transcrire_final_sync, audio_buffer, language)
+    async def transcrire_final(self, session_id: SessionID, audio_buffer: bytes, language: str) -> TranscriptionResult:
+        return await asyncio.to_thread(self._transcrire_final_sync, session_id, audio_buffer, language)
 
 
-    def _transcrire_partiel_sync(self, audio_buffer: bytes, language: str) -> TranscriptionResult:
+    def _transcrire_partiel_sync(self, session_id: SessionID, audio_buffer: bytes, language: str) -> TranscriptionResult:
         audio = self._pcm16_to_float32(audio_buffer)
         audio = self._tronquer_a_la_fenetre(audio)
 
         if self._duree_secondes(audio) < DUREE_MIN_SECONDES:
-            return TranscriptionResult(type="partial", text="", confidence=0.0)
+            return TranscriptionResult(session_id=session_id, is_final=False, text="", confidence=0.0)
 
         segments, _info = self._model_partiel.transcribe(
             audio,
@@ -63,13 +63,13 @@ class WhisperSpeechRecognizer:
             beam_size=1,       
             vad_filter=True,
         )
-        return self._construire_resultat(segments, "partial")
+        return self._construire_resultat(session_id, segments, is_final=False)
 
-    def _transcrire_final_sync(self, audio_buffer: bytes, language: str) -> TranscriptionResult:
+    def _transcrire_final_sync(self, session_id: SessionID, audio_buffer: bytes, language: str) -> TranscriptionResult:
         audio = self._pcm16_to_float32(audio_buffer)
         
         if self._duree_secondes(audio) < DUREE_MIN_SECONDES:
-            return TranscriptionResult(type="final", text="", confidence=0.0)
+            return TranscriptionResult(session_id=session_id, is_final=True, text="", confidence=0.0)
 
         segments, _info = self._model_final.transcribe(
             audio,
@@ -77,16 +77,16 @@ class WhisperSpeechRecognizer:
             beam_size=5,
             vad_filter=True,
         )
-        return self._construire_resultat(segments, "final")
+        return self._construire_resultat(session_id, segments, is_final=True)
 
-    def _construire_resultat(self, segments, type_: str) -> TranscriptionResult:
+    def _construire_resultat(self, session_id: SessionID, segments, is_final: bool) -> TranscriptionResult:
         segments = list(segments) 
         if not segments:
-            return TranscriptionResult(type=type_, text="", confidence=0.0)
+            return TranscriptionResult(session_id=session_id, is_final=is_final, text="", confidence=0.0)
 
         texte = " ".join(seg.text.strip() for seg in segments).strip()
         confiance = self._confiance_moyenne(segments)
-        return TranscriptionResult(type=type_, text=texte, confidence=confiance)
+        return TranscriptionResult(session_id=session_id, is_final=is_final, text=texte, confidence=confiance)
 
     def _confiance_moyenne(self, segments) -> float:
         scores = []

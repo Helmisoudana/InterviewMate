@@ -1,17 +1,18 @@
-
+from typing import Optional
 from asr.domain.entities.asr_session import ASRSession
-from asr.domain.value_objects.session_id import SessionId
+from shared.domain import SessionID
+from asr.domain.ports.asr_session_repository_port import ASRSessionRepositoryPort
 
 
-class ASRSessionRegistry:
+class ASRSessionRegistry(ASRSessionRepositoryPort):
     def __init__(self) -> None:
         self._sessions: dict[str, ASRSession] = {}
 
-    def enregistrer(self, session: ASRSession) -> None:
+    def save(self, session: ASRSession) -> None:
         self._sessions[session.session_id.value] = session
 
-    def obtenir(self, session_id: SessionId) -> ASRSession | None:
+    def get(self, session_id: SessionID) -> Optional[ASRSession]:
         return self._sessions.get(session_id.value)
 
-    def retirer(self, session_id: SessionId) -> None:
+    def delete(self, session_id: SessionID) -> None:
         self._sessions.pop(session_id.value, None)

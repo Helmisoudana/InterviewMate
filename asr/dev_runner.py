@@ -10,12 +10,13 @@ import asyncio
 import sys
 import wave
 
-from  domain.value_objects.session_id import SessionId
-from  domain.value_objects.audio_chunk import AudioChunk
-from  application.use_cases.start_session import StartASRSessionUseCase
-from  application.use_cases.process_audio_chunk import ProcessAudioChunkUseCase
-from  application.use_cases.finalize_turn import FinalizeTurnUseCase
-from  infrastructure.adapters.whisper_speech_recognizer import WhisperSpeechRecognizer
+from shared.domain import SessionID
+from shared.domain import AudioChunk
+from asr.application.use_cases.start_session import StartASRSessionUseCase
+from asr.application.use_cases.process_audio_chunk import ProcessAudioChunkUseCase
+from asr.application.use_cases.finalize_turn import FinalizeTurnUseCase
+from asr.infrastructure.adapters.whisper_speech_recognizer import WhisperSpeechRecognizer
+from asr.infrastructure.adapters.session_registry import ASRSessionRegistry
 
 
 def lire_wav_en_chunks(chemin: str, taille_chunk_octets: int = 3200):
@@ -30,25 +31,27 @@ def lire_wav_en_chunks(chemin: str, taille_chunk_octets: int = 3200):
 
 async def main(chemin_wav: str) -> None:
     recognizer = WhisperSpeechRecognizer(
-    model_size_partiel="tiny",
-    model_size_final="base",
-    device="cuda",
-    compute_type="float16",
-    fenetre_max_secondes=5.0,
-)
-    start = StartASRSessionUseCase()
-    process_chunk = ProcessAudioChunkUseCase(recognizer)
-    finalize = FinalizeTurnUseCase(recognizer)
+        model_size_partiel="tiny",
+        model_size_final="base",
+        device="cpu",  # Changed to cpu as fallback for ease of local testing
+        compute_type="int8",
+        fenetre_max_secondes=5.0,
+    )
+    repo = ASRSessionRegistry()
+    start = StartASRSessionUseCase(repo)
+    process_chunk = ProcessAudioChunkUseCase(recognizer, repo)
+    finalize = FinalizeTurnUseCase(recognizer, repo)
 
-    session = start.executer(SessionId("test-audio-reel"), language="fr")
+    session_id = SessionID("test-audio-reel")
+    start.executer(session_id, language="fr")
 
     for i, morceau in enumerate(lire_wav_en_chunks(chemin_wav)):
-        chunk = AudioChunk(data=morceau, sequence_number=i + 1)
-        resultat = await process_chunk.executer(session, chunk)
+        chunk = AudioChunk(session_id=session_id, data=morceau, sequence_number=i + 1)
+        resultat = await process_chunk.executer(session_id, chunk)
         if resultat.text:
             print(f"[partiel] {resultat.text} (confiance={resultat.confidence:.2f})")
 
-    resultat_final = await finalize.executer(session)
+    resultat_final = await finalize.executer(session_id)
     print(f"\n[FINAL] {resultat_final.text} (confiance={resultat_final.confidence:.2f})")
 
 
