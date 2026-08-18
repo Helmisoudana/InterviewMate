@@ -1,6 +1,5 @@
-# agent/domain/ports/scoring_notifier_port.py
 from abc import ABC, abstractmethod
-from agent.domain.entities.interview import Echange
+from agent.domain.entities.echange import Echange
 
 
 class ScoringNotifierPort(ABC):

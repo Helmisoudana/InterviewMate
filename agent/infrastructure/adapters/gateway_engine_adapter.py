@@ -19,20 +19,17 @@ class AgentGatewayEngineAdapter:
         self._conduire = ConduireEntretienUseCase(llm=llm, session_repo=session_repo, scoring_notifier=scoring_notifier)
 
     async def demarrer_session(self, session_id: str) -> None:
-        interview = Interview()
-        self._registry.enregistrer(session_id, interview)
-        await self._session_repo.save(session_id, interview)
+        self._registry.enregistrer(session_id)
+        await self._session_repo.save(session_id, Interview())
 
     async def traiter_reponse(self, session_id: str, texte_reponse: str) -> tuple[str, bool]:
-        self._obtenir_session(session_id)
+        self._verifier_session_active(session_id)
         return await self._conduire.traiter_reponse_candidat(session_id, texte_reponse)
 
     async def terminer_session(self, session_id: str) -> None:
-        self._obtenir_session(session_id)
+        self._verifier_session_active(session_id)
         self._registry.retirer(session_id)
 
-    def _obtenir_session(self, session_id: str) -> Interview:
-        interview = self._registry.obtenir(session_id)
-        if interview is None:
-            raise ValueError(f"Session Agent inconnue : {session_id}")
-        return interview
+    def _verifier_session_active(self, session_id: str) -> None:
+        if not self._registry.est_active(session_id):
+            raise ValueError(f"Session Agent inconnue ou inactive : {session_id}")

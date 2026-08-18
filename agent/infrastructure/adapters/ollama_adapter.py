@@ -1,6 +1,7 @@
 import asyncio
 import ollama
-from agent.domain.ports.llm_port import LLMPort, Message
+from agent.domain.ports.llm_port import LLMPort
+from agent.domain.value_objects.message import Message
 
 
 class OllamaAdapter(LLMPort):
@@ -11,7 +12,12 @@ class OllamaAdapter(LLMPort):
         payload = [{"role": m.role, "content": m.content} for m in messages]
 
         def appel_bloquant():
-            return list(ollama.chat(model=self.model, messages=payload, stream=True))
+            return list(ollama.chat(
+                model=self.model,
+                messages=payload,
+                stream=True,
+                format="json",
+            ))
 
         chunks = await asyncio.to_thread(appel_bloquant)
 

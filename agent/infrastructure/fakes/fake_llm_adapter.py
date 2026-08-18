@@ -1,4 +1,6 @@
-from agent.domain.ports.llm_port import LLMPort, Message
+import json
+from agent.domain.ports.llm_port import LLMPort
+from agent.domain.value_objects.message import Message
 
 
 class FakeLLMAdapter(LLMPort):
@@ -13,4 +15,5 @@ class FakeLLMAdapter(LLMPort):
     async def stream_completion(self, messages: list[Message]):
         question = self._questions[self._index % len(self._questions)]
         self._index += 1
-        yield question
+        resultat = {"qualite": "correcte", "comportement_inapproprie": False, "question": question}
+        yield json.dumps(resultat)
