@@ -1,4 +1,3 @@
-
 import asyncio
 import json
 import logging
@@ -6,20 +5,22 @@ import logging
 import websockets
 from websockets.server import WebSocketServerProtocol
 
-from  domain.entities.entities import GatewaySession, SessionFermeeError, SessionNonActiveError
-from  domain.value_objects.session_id import SessionId
-from  domain.value_objects.audio_chunk import AudioChunk
-from  domain.ports.audio_broadcaster_port import AudioBroadcasterPort
+from domain.entities.entities import GatewaySession, SessionFermeeError, SessionNonActiveError
+from domain.value_objects.session_id import SessionId
+from domain.value_objects.audio_chunk import AudioChunk
+from domain.ports.audio_broadcaster_port import AudioBroadcasterPort
+from domain.ports.asr_client_port import ASRClientPort
 
-from  application.use_cases.start_session import StartSessionUseCase, SessionInvalideError
-from  application.use_cases.receive_audio_chunk import ReceiveAudioChunkUseCase
-from  application.use_cases.request_voice_response import RequestVoiceResponseUseCase
-from  application.use_cases.signal_disconnection import SignalDisconnectionUseCase
-from  application.use_cases.request_reconnection import RequestReconnectionUseCase
-from  application.use_cases.close_session import CloseSessionUseCase
+from application.use_cases.start_session import StartSessionUseCase, SessionInvalideError
+from application.use_cases.receive_audio_chunk import ReceiveAudioChunkUseCase
+from application.use_cases.request_voice_response import RequestVoiceResponseUseCase
+from application.use_cases.signal_disconnection import SignalDisconnectionUseCase
+from application.use_cases.request_reconnection import RequestReconnectionUseCase
+from application.use_cases.close_session import CloseSessionUseCase
+from application.use_cases.handle_transcription_result import HandleTranscriptionResultUseCase
 
-from  infrastructure.adapters.simple_vad import is_silence
-from  infrastructure.adapters.session_registry import SessionRegistry
+from infrastructure.adapters.simple_vad import is_silence
+from infrastructure.adapters.session_registry import SessionRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -32,21 +33,25 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
         self,
         websocket: WebSocketServerProtocol,
         registry: SessionRegistry,
+        asr_client: ASRClientPort,
         start_session: StartSessionUseCase,
         receive_chunk: ReceiveAudioChunkUseCase,
         request_voice: RequestVoiceResponseUseCase,
         signal_disconnection: SignalDisconnectionUseCase,
         request_reconnection: RequestReconnectionUseCase,
         close_session: CloseSessionUseCase,
+        handle_transcription: HandleTranscriptionResultUseCase,
     ) -> None:
         self._ws = websocket
         self._registry = registry
+        self._asr_client = asr_client
         self._start_session = start_session
         self._receive_chunk = receive_chunk
         self._request_voice = request_voice
         self._signal_disconnection = signal_disconnection
         self._request_reconnection = request_reconnection
         self._close_session = close_session
+        self._handle_transcription = handle_transcription
         self._session: GatewaySession | None = None
         self._sequence = 0
 
@@ -91,6 +96,7 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
         self._session = GatewaySession(session_id)
         try:
             await self._start_session.executer(self._session)
+            self._asr_client.souscrire_resultats(session_id, self._traiter_resultat_asr)
         except SessionInvalideError as e:
             await self._ws.close(code=4001, reason=str(e))
             self._session = None
@@ -130,3 +136,8 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
         if payload.get("type") == "close":
             await self._close_session.executer(self._session, raison="fermeture demandée par le client")
             await self._ws.close(code=1000)
+
+    async def _traiter_resultat_asr(self, resultat) -> None:
+        if resultat.type != "final":
+            return
+        await self._handle_transcription.executer(self._session, resultat.text, broadcaster=self)

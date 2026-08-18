@@ -1,7 +1,6 @@
-
 from dataclasses import dataclass
 
-from domain.entities.models import GatewaySession
+from domain.entities.entities import GatewaySession
 from domain.value_objects.session_id import SessionId
 from domain.ports.audio_broadcaster_port import AudioBroadcasterPort
 
