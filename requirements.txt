@@ -22,4 +22,4 @@ python-dotenv
 pytest
 pytest-asyncio
 locust
-
+openai>=1.0.0

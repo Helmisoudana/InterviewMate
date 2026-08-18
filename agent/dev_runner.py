@@ -6,15 +6,16 @@ et se trouve à la racine du projet : main.py). Il sert uniquement à faire
 tourner ou tester ce module de façon isolée, pendant le développement,
 sans dépendre des autres modules ni du container.py global.
 
-Utilise les adapters "Fake" du module (infrastructure/fakes/) plutôt que
-les vrais adapters externes, pour rester rapide et indépendant.
-
 Lancer avec :
     python -m agent.dev_runner
 """
 import asyncio
+from dotenv import load_dotenv
 
-from agent.infrastructure.adapters.ollama_adapter import OllamaAdapter
+# Charger les variables d'environnement (.env) avant d'instancier les adaptateurs
+load_dotenv()
+
+from agent.infrastructure.adapters.groq_adapter import GroqAdapter
 from agent.infrastructure.fakes.fake_session_repository_adapter import FakeSessionRepositoryAdapter
 from agent.infrastructure.fakes.fake_scoring_notifier_adapter import FakeScoringNotifierAdapter
 from agent.application.use_cases.conduire_entretien import ConduireEntretienUseCase
@@ -22,14 +23,14 @@ from agent.application.use_cases.conduire_entretien import ConduireEntretienUseC
 
 async def run():
     use_case = ConduireEntretienUseCase(
-        llm=OllamaAdapter(),
+        llm=GroqAdapter(model="openai/gpt-oss-20b"),
         session_repo=FakeSessionRepositoryAdapter(),
         scoring_notifier=FakeScoringNotifierAdapter(),
     )
 
     session_id = "session-interactive-001"
 
-    print("=== Simulation d'entretien InterviewMate ===")
+    print("=== Simulation d'entretien InterviewMate (avec Groq) ===")
     print("Tape tes reponses comme si tu etais le candidat. L'entretien s'arrete automatiquement a la fin.\n")
 
     reponse_candidat = "Bonjour, je suis pret a commencer."
