@@ -1,4 +1,3 @@
-# agent/domain/ports/session_repository_port.py
 from abc import ABC, abstractmethod
 from agent.domain.entities.interview import Interview
 

@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from agent.domain.value_objects.interview_phase import (
     InterviewPhase,
     DifficultyLevel,
@@ -16,6 +17,8 @@ class Interview:
     persona: str = "bienveillant"
     echanges: list[Echange] = field(default_factory=list)
     nb_refus_consecutifs: int = 0
+    demarree_a: datetime = field(default_factory=datetime.now)
+    duree_max_minutes: int = 30
 
     def signaler_refus(self) -> None:
         self.nb_refus_consecutifs += 1
@@ -44,8 +47,13 @@ class Interview:
         if idx_actuel + 1 < len(ORDRE_PHASES):
             self.phase_actuelle = ORDRE_PHASES[idx_actuel + 1]
 
+    def temps_ecoule_depasse(self) -> bool:
+        limite = self.demarree_a + timedelta(minutes=self.duree_max_minutes)
+        return datetime.now() >= limite
+
     def est_terminee(self) -> bool:
-        return self.phase_actuelle == InterviewPhase.CLOTURE and self.doit_changer_de_phase()
+        phase_complete = self.phase_actuelle == InterviewPhase.CLOTURE and self.doit_changer_de_phase()
+        return phase_complete or self.temps_ecoule_depasse()
 
     def ajuster_difficulte(self, qualite_derniere_reponse: str) -> None:
         if qualite_derniere_reponse == "vague":

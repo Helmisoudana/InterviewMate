@@ -4,9 +4,10 @@ from agent.domain.entities.question import Question
 from agent.domain.entities.reponse import Reponse
 from agent.domain.entities.echange import Echange
 from agent.domain.services.system_prompt_builder import construire_prompt_systeme
-from agent.domain.ports.llm_port import LLMPort, Message
+from agent.domain.ports.llm_port import LLMPort
 from agent.domain.ports.session_repository_port import SessionRepositoryPort
 from agent.domain.ports.scoring_notifier_port import ScoringNotifierPort
+from agent.domain.value_objects.message import Message
 
 MAX_TENTATIVES_REGENERATION = 3
 
@@ -35,6 +36,10 @@ class ConduireEntretienUseCase:
 
     async def traiter_reponse_candidat(self, session_id: str, texte_reponse: str) -> tuple[str, bool]:
         interview = await self.session_repo.get(session_id)
+
+        if interview.est_terminee():
+            await self.session_repo.save(session_id, interview)
+            return "", True
 
         prompt_systeme = construire_prompt_systeme(interview)
         messages = [

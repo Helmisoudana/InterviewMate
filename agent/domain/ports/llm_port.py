@@ -1,13 +1,6 @@
-# agent/domain/ports/llm_port.py
 from abc import ABC, abstractmethod
 from typing import AsyncIterator
-from dataclasses import dataclass
-
-
-@dataclass
-class Message:
-    role: str       # "system", "user", "assistant"
-    content: str
+from agent.domain.value_objects.message import Message
 
 
 class LLMPort(ABC):
