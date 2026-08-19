@@ -1,24 +1,15 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
-.venv
-.vscode
-*/__pycache__
-*/*/__pycache__
-=======
-=======
-# Python
->>>>>>> eb0953b423b1e28c2d9f4c6b6790bfa6fdc5d124
+# Python / Cache
 __pycache__/
-*/__pycache__/
-*/*/__pycache__/
 *.pyc
+*.pyo
+*.pyd
 
-# Environment
+# Environments
 .env
 venv/
 .venv/
 
-# IDE
+# IDE / Éditeurs
 .vscode/
 .idea/
 
@@ -26,16 +17,13 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Logs
+# Logs / Tests
 *.log
 logs/
-
-# Tests / Coverage
 .pytest_cache/
 .coverage
-<<<<<<< HEAD
 htmlcov/
->>>>>>> 1cfa20754939a3b5a640cfe703c5150caeedbc89
-=======
-htmlcov/
->>>>>>> eb0953b423b1e28c2d9f4c6b6790bfa6fdc5d124
+
+# Modèles de voix / IA lourds (ONNX)
+*.onnx
+*.onnx.json
