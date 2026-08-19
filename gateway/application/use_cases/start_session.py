@@ -1,9 +1,9 @@
-from domain.entities.entities import GatewaySession
-from domain.ports.session_client_port import SessionClientPort
-from domain.ports.asr_client_port import ASRClientPort
-from domain.ports.tts_client_port import TTSClientPort
-from domain.ports.agent_client_port import AgentClientPort
-from domain.exceptions.exceptions import SessionInvalideError
+from gateway.domain.entities.entities import GatewaySession
+from gateway.domain.ports.session_client_port import SessionClientPort
+from gateway.domain.ports.asr_client_port import ASRClientPort
+from gateway.domain.ports.tts_client_port import TTSClientPort
+from gateway.domain.ports.agent_client_port import AgentClientPort
+from gateway.domain.exceptions.exceptions import SessionInvalideError
 
 
 

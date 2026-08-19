@@ -1,8 +1,10 @@
-from domain.entities.interview_session import InterviewSession
-from domain.value_objects.session_id import SessionId
+from typing import Optional, List, Tuple
+from session.domain.entities.interview_session import InterviewSession
+from shared.domain import SessionID
+from session.domain.ports.session_repository_port import SessionRepositoryPort
 
 
-class InMemorySessionStore:
+class InMemorySessionStore(SessionRepositoryPort):
     """Dict en mémoire : accès O(1), pas de latence réseau."""
 
     def __init__(self) -> None:
@@ -11,11 +13,11 @@ class InMemorySessionStore:
     def enregistrer(self, session: InterviewSession) -> None:
         self._sessions[session.session_id.value] = session
 
-    def obtenir(self, session_id: SessionId) -> InterviewSession | None:
+    def obtenir(self, session_id: SessionID) -> Optional[InterviewSession]:
         return self._sessions.get(session_id.value)
 
-    def retirer(self, session_id: SessionId) -> None:
+    def retirer(self, session_id: SessionID) -> None:
         self._sessions.pop(session_id.value, None)
 
-    def tout_lister(self):
+    def tout_lister(self) -> List[Tuple[str, InterviewSession]]:
         return list(self._sessions.items())

@@ -1,7 +1,7 @@
-from domain.entities.entities import GatewaySession
-from domain.value_objects.audio_chunk import AudioChunk
-from domain.ports.asr_client_port import ASRClientPort
-from domain.ports.turn_detector_port import TurnDetectorPort
+from gateway.domain.entities.entities import GatewaySession
+from shared.domain import AudioChunk
+from gateway.domain.ports.asr_client_port import ASRClientPort
+from gateway.domain.ports.turn_detector_port import TurnDetectorPort
 
 
 class ReceiveAudioChunkUseCase:

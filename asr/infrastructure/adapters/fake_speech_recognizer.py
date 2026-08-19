@@ -1,18 +1,22 @@
-
 import asyncio
-
-from  domain.value_objects.transcription_result import TranscriptionResult
+from shared.domain import SessionID, TranscriptionResult
 
 
 class FakeSpeechRecognizer:
-    async def transcrire_partiel(self, audio_buffer: bytes, language: str) -> TranscriptionResult:
-        await asyncio.sleep(0)
-        return TranscriptionResult(type="partial", text="je pense que", confidence=0.6)
-
-    async def transcrire_final(self, audio_buffer: bytes, language: str) -> TranscriptionResult:
+    async def transcrire_partiel(self, session_id: SessionID, audio_buffer: bytes, language: str) -> TranscriptionResult:
         await asyncio.sleep(0)
         return TranscriptionResult(
-            type="final",
+            session_id=session_id,
+            text="je pense que",
+            is_final=False,
+            confidence=0.6
+        )
+
+    async def transcrire_final(self, session_id: SessionID, audio_buffer: bytes, language: str) -> TranscriptionResult:
+        await asyncio.sleep(0)
+        return TranscriptionResult(
+            session_id=session_id,
             text="je pense que le pattern singleton est utile ici",
+            is_final=True,
             confidence=0.91,
         )

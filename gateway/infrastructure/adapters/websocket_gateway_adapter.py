@@ -5,22 +5,22 @@ import logging
 import websockets
 from websockets.server import WebSocketServerProtocol
 
-from domain.entities.entities import GatewaySession, SessionFermeeError, SessionNonActiveError
-from domain.value_objects.session_id import SessionId
-from domain.value_objects.audio_chunk import AudioChunk
-from domain.ports.audio_broadcaster_port import AudioBroadcasterPort
-from domain.ports.asr_client_port import ASRClientPort
+from gateway.domain.entities.entities import GatewaySession, SessionFermeeError, SessionNonActiveError
+from shared.domain import SessionID
+from shared.domain import AudioChunk
+from gateway.domain.ports.audio_broadcaster_port import AudioBroadcasterPort
+from gateway.domain.ports.asr_client_port import ASRClientPort
 
-from application.use_cases.start_session import StartSessionUseCase, SessionInvalideError
-from application.use_cases.receive_audio_chunk import ReceiveAudioChunkUseCase
-from application.use_cases.request_voice_response import RequestVoiceResponseUseCase
-from application.use_cases.signal_disconnection import SignalDisconnectionUseCase
-from application.use_cases.request_reconnection import RequestReconnectionUseCase
-from application.use_cases.close_session import CloseSessionUseCase
-from application.use_cases.handle_transcription_result import HandleTranscriptionResultUseCase
+from gateway.application.use_cases.start_session import StartSessionUseCase, SessionInvalideError
+from gateway.application.use_cases.receive_audio_chunk import ReceiveAudioChunkUseCase
+from gateway.application.use_cases.request_voice_response import RequestVoiceResponseUseCase
+from gateway.application.use_cases.signal_disconnection import SignalDisconnectionUseCase
+from gateway.application.use_cases.request_reconnection import RequestReconnectionUseCase
+from gateway.application.use_cases.close_session import CloseSessionUseCase
+from gateway.application.use_cases.handle_transcription_result import HandleTranscriptionResultUseCase
 
-from infrastructure.adapters.simple_vad import is_silence
-from infrastructure.adapters.session_registry import SessionRegistry
+from gateway.infrastructure.adapters.simple_vad import is_silence
+from gateway.infrastructure.adapters.session_registry import SessionRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -57,15 +57,18 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
 
     # ---- Implémentation du port sortant AudioBroadcasterPort ----------
 
-    async def envoyer_audio_candidat(self, session_id: SessionId, chunk: AudioChunk) -> None:
+    async def envoyer_audio_candidat(self, session_id: SessionID, chunk: AudioChunk) -> None:
         await self._ws.send(chunk.data)
+
+    async def envoyer_texte(self, session_id: SessionID, type_message: str, texte: str) -> None:
+        await self._ws.send(json.dumps({"type": type_message, "text": texte}))
 
 
     async def gerer_connexion(self) -> None:
         try:
             message_init = await asyncio.wait_for(self._ws.recv(), timeout=10)
             init = json.loads(message_init)
-            session_id = SessionId(init["session_id"])
+            session_id = SessionID(init["session_id"])
         except (asyncio.TimeoutError, json.JSONDecodeError, KeyError, ValueError):
             await self._ws.close(code=4000, reason="message d'initialisation invalide")
             return
@@ -92,7 +95,7 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
             self._registry.retirer(session_id)
 
 
-    async def _gerer_nouvelle_session(self, session_id: SessionId) -> None:
+    async def _gerer_nouvelle_session(self, session_id: SessionID) -> None:
         self._session = GatewaySession(session_id)
         try:
             await self._start_session.executer(self._session)
@@ -103,7 +106,7 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
             return
         await self._ws.send(json.dumps({"type": "session_ready"}))
 
-    async def _gerer_reconnexion(self, session_id: SessionId) -> None:
+    async def _gerer_reconnexion(self, session_id: SessionID) -> None:
         existante = self._registry.obtenir(session_id)
         if existante is None:
             await self._ws.close(code=4004, reason="aucune session à reconnecter")
@@ -124,8 +127,16 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
             await self._traiter_message_controle(json.loads(message))
 
     async def _traiter_chunk_audio(self, data: bytes) -> None:
+        if self._session is None:
+            return
+
         self._sequence += 1
-        chunk = AudioChunk(data=data, sequence_number=self._sequence)
+        # AJOUT DE session_id=self._session.session_id ICI
+        chunk = AudioChunk(
+            session_id=self._session.session_id,
+            data=data,
+            sequence_number=self._sequence
+        )
         silence = is_silence(data)
         try:
             await self._receive_chunk.executer(self._session, chunk, silence_detecte=silence)
@@ -137,7 +148,14 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
             await self._close_session.executer(self._session, raison="fermeture demandée par le client")
             await self._ws.close(code=1000)
 
+    
     async def _traiter_resultat_asr(self, resultat) -> None:
-        if resultat.type != "final":
+        if not resultat.is_final or self._session is None:
             return
-        await self._handle_transcription.executer(self._session, resultat.text, broadcaster=self)
+
+        texte_propre = resultat.text.strip() if resultat.text else ""
+        if not texte_propre:
+            return
+
+        await self.envoyer_texte(self._session.session_id, "transcription", texte_propre)
+        await self._handle_transcription.executer(self._session, texte_propre, broadcaster=self)

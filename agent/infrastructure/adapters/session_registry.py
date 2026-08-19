@@ -1,15 +1,12 @@
-from agent.domain.entities.interview import Interview
-
-
 class AgentSessionRegistry:
     def __init__(self) -> None:
-        self._sessions: dict[str, Interview] = {}
+        self._sessions_actives: set[str] = set()
 
-    def enregistrer(self, session_id: str, interview: Interview) -> None:
-        self._sessions[session_id] = interview
+    def enregistrer(self, session_id: str) -> None:
+        self._sessions_actives.add(session_id)
 
-    def obtenir(self, session_id: str) -> Interview | None:
-        return self._sessions.get(session_id)
+    def est_active(self, session_id: str) -> bool:
+        return session_id in self._sessions_actives
 
     def retirer(self, session_id: str) -> None:
-        self._sessions.pop(session_id, None)
+        self._sessions_actives.discard(session_id)

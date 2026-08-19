@@ -1,9 +1,0 @@
-from typing import Protocol
-
-from domain.value_objects.session_id import SessionId
-
-
-class SessionEngine(Protocol):
-    async def valider_session(self, session_id: SessionId) -> bool: ...
-    async def notifier_coupure(self, session_id: SessionId, raison: str) -> None: ...
-    async def notifier_reconnexion(self, session_id: SessionId) -> None: ...

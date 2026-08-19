@@ -1,2 +1,0 @@
-class SessionASRInconnue(Exception):
-    pass
