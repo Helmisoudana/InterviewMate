@@ -16,4 +16,5 @@ class HandleTranscriptionResultUseCase:
             session.fermer()
             return
 
+        await broadcaster.envoyer_texte(session.session_id, "agent_question", question)
         await self._request_voice.executer(session, question, broadcaster=broadcaster)

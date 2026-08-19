@@ -24,7 +24,9 @@ from agent.infrastructure.adapters.session_registry import AgentSessionRegistry
 from agent.application.use_cases.start_session import StartAgentSessionUseCase
 from agent.application.use_cases.conduire_entretien import ConduireEntretienUseCase
 from agent.application.use_cases.end_session import EndAgentSessionUseCase
-from tests.test_agent import FakeSessionRepo, FakeLLM, FakeScoringNotifier
+from agent.infrastructure.fakes.fake_session_repository_adapter import FakeSessionRepositoryAdapter
+from agent.infrastructure.fakes.fake_llm_adapter import FakeLLMAdapter
+from agent.infrastructure.fakes.fake_scoring_notifier_adapter import FakeScoringNotifierAdapter
 from gateway.infrastructure.adapters.in_process_agent_client import InProcessAgentClient
 
 # Session imports
@@ -65,10 +67,10 @@ async def main():
     tts_client = InProcessTTSClient(tts_start, tts_synthesize, tts_end)
 
     # 3. Wire Agent
-    agent_repo = FakeSessionRepo()
+    agent_repo = FakeSessionRepositoryAdapter()
     agent_registry = AgentSessionRegistry()
-    fake_llm = FakeLLM([{"qualite": "correcte", "comportement_inapproprie": False, "question": "Bonjour ! Parlez-moi de votre expérience avec Python."}])
-    fake_notifier = FakeScoringNotifier()
+    fake_llm = FakeLLMAdapter()
+    fake_notifier = FakeScoringNotifierAdapter()
     agent_start = StartAgentSessionUseCase(agent_repo, agent_registry)
     agent_conduire = ConduireEntretienUseCase(fake_llm, agent_repo, fake_notifier, agent_registry)
     agent_end = EndAgentSessionUseCase(agent_registry)

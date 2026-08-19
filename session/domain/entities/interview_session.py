@@ -13,7 +13,7 @@ class InterviewSession:
     def __init__(self, session_id: SessionID, config: SessionConfig) -> None:
         self.session_id = session_id
         self.config = config
-        self.phase = Phase.INTRODUCTION
+        self.phase = Phase.INTRO
         self.historique: List[Exchange] = []
         self.nombre_questions_posees = 0
         self.derniere_activite = datetime.now(timezone.utc)

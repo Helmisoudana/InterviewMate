@@ -5,7 +5,7 @@ from agent.domain.value_objects.message import Message
 
 
 class OllamaAdapter(LLMPort):
-    def __init__(self, model: str = "llama3"):
+    def __init__(self, model: str = "llama3.1"):
         self.model = model
 
     async def stream_completion(self, messages: list[Message]):

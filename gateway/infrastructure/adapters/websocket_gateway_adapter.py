@@ -60,6 +60,9 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
     async def envoyer_audio_candidat(self, session_id: SessionID, chunk: AudioChunk) -> None:
         await self._ws.send(chunk.data)
 
+    async def envoyer_texte(self, session_id: SessionID, type_message: str, texte: str) -> None:
+        await self._ws.send(json.dumps({"type": type_message, "text": texte}))
+
 
     async def gerer_connexion(self) -> None:
         try:
@@ -124,8 +127,16 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
             await self._traiter_message_controle(json.loads(message))
 
     async def _traiter_chunk_audio(self, data: bytes) -> None:
+        if self._session is None:
+            return
+
         self._sequence += 1
-        chunk = AudioChunk(data=data, sequence_number=self._sequence)
+        # AJOUT DE session_id=self._session.session_id ICI
+        chunk = AudioChunk(
+            session_id=self._session.session_id,
+            data=data,
+            sequence_number=self._sequence
+        )
         silence = is_silence(data)
         try:
             await self._receive_chunk.executer(self._session, chunk, silence_detecte=silence)
@@ -137,7 +148,14 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
             await self._close_session.executer(self._session, raison="fermeture demandée par le client")
             await self._ws.close(code=1000)
 
+    
     async def _traiter_resultat_asr(self, resultat) -> None:
-        if not resultat.is_final:
+        if not resultat.is_final or self._session is None:
             return
-        await self._handle_transcription.executer(self._session, resultat.text, broadcaster=self)
+
+        texte_propre = resultat.text.strip() if resultat.text else ""
+        if not texte_propre:
+            return
+
+        await self.envoyer_texte(self._session.session_id, "transcription", texte_propre)
+        await self._handle_transcription.executer(self._session, texte_propre, broadcaster=self)

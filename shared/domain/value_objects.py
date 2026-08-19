@@ -1,13 +1,14 @@
 # shared/domain/value_objects.py
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from typing import Optional
+import time
 import uuid
 
 
 @dataclass(frozen=True)
 class SessionID:
-    """Identifiant unique de session partagé entre tous les modules."""
     value: str
 
     def __post_init__(self):
@@ -15,7 +16,7 @@ class SessionID:
             raise ValueError("SessionID doit être une chaîne non vide.")
 
     @classmethod
-    def generate(classmethod) -> "SessionID":
+    def generate(cls) -> "SessionID":
         return cls(value=str(uuid.uuid4()))
 
     def __str__(self) -> str:
@@ -24,11 +25,12 @@ class SessionID:
 
 @dataclass(frozen=True)
 class AudioChunk:
-    """Bloc audio transmis par le Gateway vers ASR."""
     session_id: SessionID
     data: bytes
     sample_rate: int = 16000
     is_final: bool = False
+    sequence_number: Optional[int] = None
+    captured_at: datetime = field(default_factory=datetime.now)
 
     def __post_init__(self):
         if not isinstance(self.data, bytes):
@@ -37,7 +39,6 @@ class AudioChunk:
 
 @dataclass(frozen=True)
 class TranscriptionResult:
-    """Résultat de la transcription transmis par ASR vers Gateway/Agent."""
     session_id: SessionID
     text: str
     is_final: bool
@@ -45,7 +46,7 @@ class TranscriptionResult:
 
 
 class InterviewPhase(str, Enum):
-    """Phases standard d'un entretien."""
+
     INIT = "INIT"
     INTRO = "INTRO"
     QUESTIONNING = "QUESTIONNING"
@@ -53,9 +54,45 @@ class InterviewPhase(str, Enum):
     CLOSED = "CLOSED"
 
 
+class InterviewStage(str, Enum):
+
+    INTRO = "intro"
+    TECHNIQUE = "technique"
+    COMPORTEMENTAL = "comportemental"
+    CLOTURE = "cloture"
+    TERMINEE = "terminee"
+
+
+QUESTIONS_PAR_STAGE = {
+    InterviewStage.INTRO: 1,
+    InterviewStage.TECHNIQUE: 4,
+    InterviewStage.COMPORTEMENTAL: 2,
+    InterviewStage.CLOTURE: 1,
+}
+
+ORDRE_STAGES = [
+    InterviewStage.INTRO,
+    InterviewStage.TECHNIQUE,
+    InterviewStage.COMPORTEMENTAL,
+    InterviewStage.CLOTURE,
+]
+
+_STAGE_TO_PUBLIC_PHASE = {
+    InterviewStage.INTRO: InterviewPhase.INTRO,
+    InterviewStage.TECHNIQUE: InterviewPhase.QUESTIONNING,
+    InterviewStage.COMPORTEMENTAL: InterviewPhase.QUESTIONNING,
+    InterviewStage.CLOTURE: InterviewPhase.CONCLUSION,
+    InterviewStage.TERMINEE: InterviewPhase.CLOSED,
+}
+
+
+def stage_to_public_phase(stage: "InterviewStage") -> "InterviewPhase":
+
+    return _STAGE_TO_PUBLIC_PHASE.get(stage, InterviewPhase.INTRO)
+
+
 @dataclass(frozen=True)
 class Message:
-    """Message échangé dans le cadre de l'entretien (User ou Assistant)."""
-    role: str  # "user" ou "assistant" ou "system"
+    role: str  
     content: str
-    timestamp: float
+    timestamp: float = field(default_factory=time.time)
