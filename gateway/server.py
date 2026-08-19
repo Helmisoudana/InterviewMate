@@ -1,18 +1,9 @@
-# gateway/server.py
-"""
-Composition root RÉEL du backend : démarre le serveur WebSocket et câble
-les vrais adapters (Whisper, Ollama, Piper) au lieu des fakes utilisées
-par gateway/dev_runner.py.
 
-Lancer depuis la racine du projet :
-    python -m gateway.server
-"""
 import asyncio
 import logging
 
 import websockets
 
-# ASR (réel : faster-whisper)
 from asr.infrastructure.adapters.session_registry import ASRSessionRegistry
 from asr.infrastructure.adapters.whisper_speech_recognizer import WhisperSpeechRecognizer
 from asr.application.use_cases.start_session import StartASRSessionUseCase
@@ -21,7 +12,6 @@ from asr.application.use_cases.finalize_turn import FinalizeTurnUseCase
 from asr.application.use_cases.end_session import EndASRSessionUseCase
 from gateway.infrastructure.adapters.in_process_asr_client import InProcessASRClient
 
-# TTS (réel : Piper)
 from tts.infrastructure.adapters.session_registry import TTSSessionRegistry
 from tts.infrastructure.adapters.piper_speech_synthesizer import PiperSpeechSynthesizer
 from tts.application.use_cases.start_session import StartTTSSessionUseCase
@@ -29,7 +19,6 @@ from tts.application.use_cases.synthesize_text import SynthesizeTextUseCase
 from tts.application.use_cases.end_session import EndTTSSessionUseCase
 from gateway.infrastructure.adapters.in_process_tts_client import InProcessTTSClient
 
-# Agent (réel : Ollama)
 from agent.infrastructure.adapters.session_registry import AgentSessionRegistry
 from agent.infrastructure.adapters.ollama_adapter import OllamaAdapter
 from agent.infrastructure.fakes.fake_session_repository_adapter import FakeSessionRepositoryAdapter
@@ -39,13 +28,11 @@ from agent.application.use_cases.conduire_entretien import ConduireEntretienUseC
 from agent.application.use_cases.end_session import EndAgentSessionUseCase
 from gateway.infrastructure.adapters.in_process_agent_client import InProcessAgentClient
 
-# Session (en mémoire — pas de vraie persistance pour l'instant)
 from session.infrastructure.adapters.in_memory_session_store import InMemorySessionStore
 from session.application.use_cases.create_session import CreateSessionUseCase
 from session.application.use_cases.get_session_state import GetSessionStateUseCase
 from gateway.infrastructure.adapters.in_process_session_client import InProcessSessionClient
 
-# Gateway : use cases + adapter WebSocket
 from gateway.application.use_cases.start_session import StartSessionUseCase
 from gateway.application.use_cases.receive_audio_chunk import ReceiveAudioChunkUseCase
 from gateway.application.use_cases.request_voice_response import RequestVoiceResponseUseCase
@@ -62,10 +49,8 @@ logger = logging.getLogger("gateway.server")
 
 
 class ApplicationContainer:
-    """Assemble une seule fois toutes les dépendances (modules + use cases)."""
 
     def __init__(self) -> None:
-        # --- ASR ---
         asr_repo = ASRSessionRegistry()
         recognizer = WhisperSpeechRecognizer(
             model_size_partiel="tiny",
@@ -80,7 +65,6 @@ class ApplicationContainer:
             EndASRSessionUseCase(asr_repo),
         )
 
-        # --- TTS ---
         tts_repo = TTSSessionRegistry()
         synthesizer = PiperSpeechSynthesizer(voices_dir=".")
         self.tts_client = InProcessTTSClient(
@@ -89,18 +73,18 @@ class ApplicationContainer:
             EndTTSSessionUseCase(tts_repo),
         )
 
-        # --- Agent ---
-        agent_repo = FakeSessionRepositoryAdapter()  # pas de persistance réelle pour l'instant
+
+        agent_repo = FakeSessionRepositoryAdapter()  
         agent_registry = AgentSessionRegistry()
         llm = OllamaAdapter(model="llama3.1")
-        notifier = FakeScoringNotifierAdapter()  # module scoring pas encore implémenté
+        notifier = FakeScoringNotifierAdapter()
         self.agent_client = InProcessAgentClient(
             StartAgentSessionUseCase(agent_repo, agent_registry),
             ConduireEntretienUseCase(llm, agent_repo, notifier, agent_registry),
             EndAgentSessionUseCase(agent_registry),
         )
 
-        # --- Session ---
+
         session_store = InMemorySessionStore()
         self.session_client = InProcessSessionClient(
             CreateSessionUseCase(session_store),
@@ -108,7 +92,7 @@ class ApplicationContainer:
             session_store,
         )
 
-        # --- Gateway : orchestration + registre des connexions actives ---
+
         self.gateway_registry = SessionRegistry()
         self.start_session_uc = StartSessionUseCase(
             self.session_client, self.asr_client, self.tts_client, self.agent_client
@@ -153,10 +137,9 @@ async def main(host: str = "0.0.0.0", port: int = 8765) -> None:
         routed_handler, 
         host, 
         port,
-        ping_interval=30,  # Envoie un ping toutes les 30s
-        ping_timeout=60,   # Tolère jusqu'à 60s d'inactivité/blocage
+        ping_interval=30,
     ):
-        await asyncio.Future()  # tourne indéfiniment
+        await asyncio.Future() 
 
 
 if __name__ == "__main__":
