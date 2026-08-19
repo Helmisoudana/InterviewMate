@@ -1,0 +1,10 @@
+<div
+  class="avatar"
+  [class]="'avatar--' + size + ' avatar--' + variant"
+>
+  @if (imageUrl) {
+    <img [src]="imageUrl" [alt]="''" class="avatar__img" />
+  } @else {
+    <span class="avatar__initials">{{ initials() }}</span>
+  }
+</div>

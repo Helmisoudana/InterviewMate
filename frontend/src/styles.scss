@@ -1,0 +1,134 @@
+
+:root {
+  /* Palette */
+  --color-bg: #ffffff;
+  --color-surface: #f6fafc;
+  --color-surface-hover: #eef6f9;
+  --color-border: #e2edf2;
+
+  --color-primary: #133458;      /* bleu foncé — texte, headers, CTA principal */
+  --color-primary-hover: #0d2740;
+  --color-accent: #97ddE9;        /* bleu clair — hover, accents, états actifs */
+  --color-accent-dark: #4fb8ca;
+  --color-success: #c4f7ca;       /* vert menthe — états positifs / connecté */
+  --color-success-dark: #3a9a52;
+  --color-danger: #e5484d;        /* rouge — bouton quitter / erreurs */
+  --color-danger-hover: #c93a3f;
+
+  --color-text: #16324a;
+  --color-text-muted: #5b7a99;
+  --color-text-on-dark: #ffffff;
+
+  /* Typo */
+  --font-heading: 'Poppins', 'Segoe UI', sans-serif;
+  --font-body: 'Inter', 'Segoe UI', sans-serif;
+
+  /* Rayons / ombres */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+  --shadow-soft: 0 4px 16px rgba(19, 52, 88, 0.06);
+  --shadow-hover: 0 6px 22px rgba(19, 52, 88, 0.1);
+
+  --transition-fast: 150ms ease;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+  color: var(--color-primary);
+  margin: 0 0 0.5em 0;
+  font-weight: 600;
+}
+
+p {
+  margin: 0 0 1em 0;
+  color: var(--color-text-muted);
+}
+
+a {
+  color: var(--color-primary);
+}
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border-radius: var(--radius-pill);
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-text-on-dark);
+
+  &:hover {
+    background: var(--color-primary-hover);
+  }
+}
+
+.btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+
+  &:hover {
+    background: var(--color-surface-hover);
+  }
+}
+
+.btn-danger {
+  background: var(--color-danger);
+  color: var(--color-text-on-dark);
+
+  &:hover {
+    background: var(--color-danger-hover);
+  }
+}
+
+/* Carte de base réutilisable */
+.card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+}
+
+/* Focus clavier visible partout (accessibilité) */
+:focus-visible {
+  outline: 2px solid var(--color-accent-dark);
+  outline-offset: 2px;
+}

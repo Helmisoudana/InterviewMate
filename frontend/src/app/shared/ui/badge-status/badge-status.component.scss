@@ -1,0 +1,39 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.badge__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.badge--connected {
+  background: var(--color-success);
+  color: var(--color-success-dark);
+}
+
+.badge--connecting,
+.badge--reconnecting {
+  background: var(--color-accent);
+  color: var(--color-primary);
+}
+
+.badge--ended {
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.badge--error {
+  background: #fbe4e5;
+  color: var(--color-danger);
+}

@@ -1,0 +1,94 @@
+.hero {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: 56px 48px;
+  margin-bottom: 40px;
+}
+
+.hero__text {
+  max-width: 480px;
+
+  h1 {
+    font-size: 30px;
+    margin-bottom: 12px;
+  }
+
+  p {
+    margin-bottom: 24px;
+  }
+}
+
+.history-preview__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16px;
+
+  h2 {
+    font-size: 18px;
+    margin: 0;
+  }
+}
+
+.history-preview__link {
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--color-accent-dark);
+}
+
+.history-preview__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.history-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+
+  &:hover {
+    border-color: var(--color-accent-dark);
+    box-shadow: var(--shadow-soft);
+  }
+}
+
+.history-card__info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.history-card__role {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.history-card__date {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.history-card__score {
+  font-weight: 700;
+  color: var(--color-success-dark);
+  font-size: 14px;
+}
+
+.history-card__pending {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent-dark);
+  background: var(--color-accent);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+}

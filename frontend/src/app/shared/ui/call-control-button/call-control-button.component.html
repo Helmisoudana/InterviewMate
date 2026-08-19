@@ -1,0 +1,14 @@
+<button
+  type="button"
+  class="ctrl-btn"
+  [class.ctrl-btn--active]="active && variant === 'default'"
+  [class.ctrl-btn--inactive]="!active && variant === 'default'"
+  [class.ctrl-btn--danger]="variant === 'danger'"
+  [attr.aria-pressed]="variant === 'default' ? active : null"
+  [attr.aria-label]="ariaLabel"
+  (click)="onClick()"
+>
+  <span class="ctrl-btn__icon">
+    <ng-content></ng-content>
+  </span>
+</button>

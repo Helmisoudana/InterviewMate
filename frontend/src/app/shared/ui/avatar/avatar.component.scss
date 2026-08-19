@@ -1,0 +1,45 @@
+.avatar {
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+}
+
+.avatar__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar--sm {
+  width: 32px;
+  height: 32px;
+  font-size: 12px;
+}
+
+.avatar--md {
+  width: 48px;
+  height: 48px;
+  font-size: 16px;
+}
+
+.avatar--lg {
+  width: 88px;
+  height: 88px;
+  font-size: 26px;
+}
+
+/* Variante agent IA : halo bleu clair, utilisé dans agent-tile pendant l'appel */
+.avatar--agent {
+  background: var(--color-accent);
+  border-color: var(--color-accent-dark);
+  color: var(--color-primary);
+  box-shadow: 0 0 0 6px rgba(151, 221, 233, 0.25);
+}
