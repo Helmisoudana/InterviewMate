@@ -1,0 +1,129 @@
+.precall-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: var(--color-bg, #ffffff);
+  color: var(--color-text, #133458);
+}
+
+.precall-card {
+  width: 440px;
+  padding: 32px;
+  background: var(--color-surface, #f8fafc);
+  border-radius: 16px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  text-align: center;
+
+  h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0 0 6px 0;
+  }
+
+  p {
+    font-size: 13px;
+    color: var(--color-text-muted, #64748b);
+    margin: 0 0 20px 0;
+  }
+}
+
+.video-preview-box {
+  position: relative;
+  width: 100%;
+  height: 250px;
+  background: #000000;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+    &.hidden { display: none; }
+  }
+
+  .camera-off {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #64748b;
+    font-size: 13px;
+  }
+
+  .mic-meter {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+
+    .mic-level {
+      height: 100%;
+      background: var(--color-accent, #97dde9);
+      transition: width 0.1s linear;
+    }
+  }
+}
+
+/* Boutons de contrôle avec icône + texte */
+.controls {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+
+  .ctrl-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 42px;
+    padding: 0 12px;
+    border-radius: 10px;
+    border: 1px solid var(--color-border, #e2e8f0);
+    background: #ffffff;
+    color: var(--color-text, #133458);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: #f1f5f9;
+    }
+
+    &.off {
+      background: #fef2f2;
+      border-color: #fca5a5;
+      color: #ef4444;
+
+      &:hover {
+        background: #fee2e2;
+      }
+    }
+  }
+}
+
+.btn-join {
+  width: 100%;
+  height: 46px;
+  border-radius: 50px;
+  background: var(--color-text, #133458);
+  color: #ffffff;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 0.92;
+  }
+}

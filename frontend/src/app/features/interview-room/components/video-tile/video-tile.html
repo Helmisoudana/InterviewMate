@@ -1,1 +1,37 @@
-<p>video-tile works!</p>
+<div 
+  class="video-card" 
+  [class.speaking]="isSpeaking() || audioLevel() > 8"
+  [style.--mic-volume]="audioLevel()"
+>
+  <!-- La balise video est directement dans le conteneur -->
+  <video 
+    #userVideo 
+    autoplay 
+    playsinline 
+    [muted]="true"
+    [class.hidden]="!isVideoOn()"
+  ></video>
+
+  <!-- Si la caméra est coupée -->
+  @if (!isVideoOn()) {
+    <div class="video-off-placeholder">
+      <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+      </svg>
+    </div>
+  }
+
+  <!-- Badge Micro désactivé -->
+  @if (isMuted()) {
+    <div class="muted-badge" title="Micro désactivé">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="1" y1="1" x2="23" y2="23"></line>
+        <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path>
+        <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path>
+        <line x1="12" y1="19" x2="12" y2="23"></line>
+        <line x1="8" y1="23" x2="16" y2="23"></line>
+      </svg>
+    </div>
+  }
+</div>

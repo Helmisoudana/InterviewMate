@@ -2,19 +2,20 @@
   <div class="hero__text">
     <h1>Prêt pour votre prochain entretien&nbsp;?</h1>
     <p>Entraînez-vous avec un agent IA en conditions réelles — appel vocal, questions ciblées, rapport détaillé à la clé.</p>
-    <a routerLink="/interview/new" class="btn btn-primary">Nouvel entretien</a>
+    <a routerLink="/pre-call" class="btn btn-primary">Nouvel entretien</a>
   </div>
 </section>
 
 <section class="history-preview">
   <div class="history-preview__header">
     <h2>Entretiens récents</h2>
-    <a routerLink="/history" class="history-preview__link">Voir tout l’historique →</a>
+    <a routerLink="/home/history" class="history-preview__link">Voir tout l’historique →</a>
   </div>
 
   <div class="history-preview__list">
     @for (item of recentInterviews(); track item.id) {
-      <a class="history-card" [routerLink]="['/report', item.id]">
+      <!-- La carte redirige vers la page historique -->
+      <a class="history-card" routerLink="/home/history">
         <app-avatar [name]="item.role" size="md"></app-avatar>
 
         <div class="history-card__info">

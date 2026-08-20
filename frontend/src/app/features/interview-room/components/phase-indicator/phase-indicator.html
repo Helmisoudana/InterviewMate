@@ -1,1 +1,8 @@
-<p>phase-indicator works!</p>
+<div class="phase-container">
+  @for (p of phases; track p.key) {
+    <div class="phase-step" [class.active]="currentPhase() === p.key">
+      <span class="phase-bullet"></span>
+      <span class="phase-label">{{ p.label }}</span>
+    </div>
+  }
+</div>

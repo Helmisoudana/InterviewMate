@@ -1,1 +1,59 @@
-<p>register works!</p>
+<div class="auth-container">
+  <div class="auth-left">
+    <div class="brand-logo">
+      <div class="logo-dot"></div>
+      <span>InterviewMate</span>
+    </div>
+
+    <div class="form-wrapper fade-in">
+      <span class="subtitle">Commencez l'aventure</span>
+      <h2>Créer un compte</h2>
+
+      <form (ngSubmit)="onSubmit()">
+        <div class="input-field">
+          <label>Email</label>
+          <input 
+            type="email" 
+            [(ngModel)]="email" 
+            name="email" 
+            placeholder="exemple@email.com" 
+            required 
+          />
+        </div>
+
+        <div class="input-field">
+          <label>Nom d'utilisateur</label>
+          <input 
+            type="text" 
+            [(ngModel)]="username" 
+            name="username" 
+            placeholder="Nom d'utilisateur" 
+            required 
+          />
+        </div>
+
+        <div class="input-field">
+          <label>Mot de passe</label>
+          <input 
+            type="password" 
+            [(ngModel)]="password" 
+            name="password" 
+            placeholder="••••••••" 
+            required 
+          />
+        </div>
+
+        <button type="submit" class="btn-submit">S'inscrire</button>
+      </form>
+
+      <div class="auth-footer">
+        Déjà un compte ? 
+        <a routerLink="/login" class="link-btn">Se connecter</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="auth-right">
+    <div class="bg-gradient-artwork"></div>
+  </div>
+</div>

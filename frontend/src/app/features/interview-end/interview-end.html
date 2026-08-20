@@ -1,1 +1,31 @@
-<p>interview-end works!</p>
+<div class="meet-end-container">
+  <header class="meet-end-header">
+    <div class="countdown-badge">
+      <span class="timer-circle">{{ countdown }}</span>
+      <span class="timer-label">Retour à l'écran d'accueil...</span>
+    </div>
+  </header>
+
+  <main class="meet-end-content">
+    <h1 class="main-title">Vous avez quitté l'entretien</h1>
+
+    <div class="actions-group">
+      <button class="btn-outline" (click)="rejoinInterview()">
+        Réintégrer l'entretien
+      </button>
+
+      <button class="btn-solid" (click)="goToHome()">
+        Revenir à l'écran d'accueil
+      </button>
+
+      <button class="btn-outline" (click)="viewReport()">
+        Voir le rapport
+      </button>
+    </div>
+
+    <!-- Feedback discret sous les boutons -->
+    <button class="feedback-link" (click)="sendFeedback()">
+      Envoyer des commentaires
+    </button>
+  </main>
+</div>

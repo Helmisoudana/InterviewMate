@@ -1,0 +1,77 @@
+.control-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 20px;
+  background-color: var(--color-surface, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 50px;
+}
+
+.timer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text, #133458);
+  font-size: 14px;
+  font-weight: 600;
+
+  .timer-icon {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.divider {
+  width: 1px;
+  height: 20px;
+  background-color: var(--color-border, #e2e8f0);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ctrl-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background-color: var(--color-bg, #ffffff);
+  color: var(--color-text, #133458);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  &:hover {
+    border-color: var(--color-text, #133458);
+    background-color: var(--color-surface, #f8fafc);
+  }
+
+  // État actif (Bouton sombre style "Nouvel entretien")
+  &.active {
+    background-color: var(--color-text, #133458);
+    color: #ffffff;
+    border-color: var(--color-text, #133458);
+  }
+
+  // Bouton raccrocher
+  &.end-call {
+    background-color: #ef4444;
+    color: #ffffff;
+    border-color: #ef4444;
+
+    &:hover {
+      background-color: #dc2626;
+    }
+  }
+}

@@ -1,1 +1,60 @@
-<p>interview-history works!</p>
+<div class="history-container">
+  <!-- Panneau Gauche : Liste des entretiens -->
+  <aside class="history-sidebar">
+    <header class="sidebar-header">
+      <h2>Historique</h2>
+      <span class="count-badge">{{ sessions().length }} entretiens</span>
+    </header>
+
+    <div class="sessions-list">
+      @for (session of sessions(); track session.id) {
+        <div 
+          class="session-card" 
+          [class.active]="selectedSession()?.id === session.id"
+          (click)="selectSession(session)"
+        >
+          <div class="card-header">
+            <h3>{{ session.title }}</h3>
+            <span class="score-badge">{{ session.score }}/100</span>
+          </div>
+          <div class="card-meta">
+            <span>{{ session.date }}</span>
+            <span>•</span>
+            <span>{{ session.duration }}</span>
+          </div>
+        </div>
+      }
+    </div>
+  </aside>
+
+  <!-- Panneau Droit : Fil de discussion -->
+  <main class="history-detail">
+    @if (selectedSession(); as session) {
+      <header class="detail-header">
+        <div>
+          <h1>{{ session.title }}</h1>
+          <p>{{ session.date }} — Durée : {{ session.duration }}</p>
+        </div>
+        <div class="score-pill">Score : {{ session.score }}/100</div>
+      </header>
+
+      <div class="chat-transcript">
+        @for (msg of session.messages; track $index) {
+          <div class="message-row" [class.user]="msg.sender === 'user'">
+            <div class="message-bubble">
+              <span class="sender-label">
+                {{ msg.sender === 'ai' ? 'IA Interviewer' : 'Vous' }}
+              </span>
+              <p>{{ msg.text }}</p>
+              <span class="message-time">{{ msg.time }}</span>
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="empty-state">
+        <p>Sélectionnez un entretien pour afficher la discussion.</p>
+      </div>
+    }
+  </main>
+</div>

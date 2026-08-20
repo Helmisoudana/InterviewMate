@@ -1,0 +1,32 @@
+.phase-container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  background: var(--color-surface, #f8f9fa);
+  border-radius: 20px;
+  border: 1px solid var(--color-border, #e9ecef);
+}
+
+.phase-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.4;
+  transition: opacity 0.3s;
+
+  &.active {
+    opacity: 1;
+    font-weight: 600;
+    .phase-bullet { background: var(--color-primary, #0066ff); }
+  }
+}
+
+.phase-bullet {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #aaa;
+}
+
+.phase-label { font-size: 13px; }

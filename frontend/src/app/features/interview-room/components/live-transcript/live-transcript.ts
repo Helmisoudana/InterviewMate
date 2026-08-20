@@ -1,9 +1,14 @@
-import { Component } from '@angular/core';
+import { Component, input } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { TranscriptMessage } from '../../interview-room.models';
 
 @Component({
   selector: 'app-live-transcript',
-  imports: [],
+  standalone: true,
+  imports: [CommonModule],
   templateUrl: './live-transcript.html',
   styleUrl: './live-transcript.scss',
 })
-export class LiveTranscript {}
+export class LiveTranscript {
+  readonly transcript = input.required<TranscriptMessage[]>();
+}

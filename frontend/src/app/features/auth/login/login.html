@@ -1,1 +1,52 @@
-<p>login works!</p>
+<div class="auth-container">
+  <div class="auth-left">
+    <div class="brand-logo">
+      <div class="logo-dot"></div>
+      <span>InterviewMate</span>
+    </div>
+
+    <div class="form-wrapper fade-in">
+      <span class="subtitle">Bienvenue</span>
+      <h2>Connexion à InterviewMate</h2>
+
+      <form (ngSubmit)="onSubmit()">
+        <div class="input-field">
+          <label>Nom d'utilisateur</label>
+          <input 
+            type="text" 
+            [(ngModel)]="username" 
+            name="username" 
+            placeholder="admin" 
+            required 
+          />
+        </div>
+
+        <div class="input-field">
+          <label>Mot de passe</label>
+          <input 
+            type="password" 
+            [(ngModel)]="password" 
+            name="password" 
+            placeholder="••••••••" 
+            required 
+          />
+        </div>
+
+        @if (errorMessage) {
+          <div class="error-badge">{{ errorMessage }}</div>
+        }
+
+        <button type="submit" class="btn-submit">Se connecter</button>
+      </form>
+
+      <div class="auth-footer">
+        Pas encore de compte ? 
+        <a routerLink="/register" class="link-btn">S'inscrire</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="auth-right">
+    <div class="bg-gradient-artwork"></div>
+  </div>
+</div>

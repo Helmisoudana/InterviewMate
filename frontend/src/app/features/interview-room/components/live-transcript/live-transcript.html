@@ -1,1 +1,18 @@
-<p>live-transcript works!</p>
+<div class="transcript-panel">
+  <div class="header">
+    <h3>Transcripteur en direct</h3>
+  </div>
+  <div class="messages-container">
+    @for (msg of transcript(); track msg.id) {
+      <div class="message" [class.agent]="msg.sender === 'agent'" [class.candidate]="msg.sender === 'candidate'">
+        <div class="msg-meta">
+          <span class="sender">{{ msg.sender === 'agent' ? 'Agent IA' : 'Vous' }}</span>
+          <span class="time">{{ msg.timestamp }}</span>
+        </div>
+        <p class="text">{{ msg.text }}</p>
+      </div>
+    } @empty {
+      <p class="empty-state">La transcription apparaîtra ici au fil de la discussion...</p>
+    }
+  </div>
+</div>
