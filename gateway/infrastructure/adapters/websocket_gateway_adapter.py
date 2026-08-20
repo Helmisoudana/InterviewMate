@@ -19,15 +19,14 @@ from gateway.application.use_cases.request_reconnection import RequestReconnecti
 from gateway.application.use_cases.close_session import CloseSessionUseCase
 from gateway.application.use_cases.handle_transcription_result import HandleTranscriptionResultUseCase
 
-from gateway.infrastructure.adapters.simple_vad import is_silence
+from gateway.infrastructure.adapters.simple_vad import is_silence, calculer_rms
 from gateway.infrastructure.adapters.session_registry import SessionRegistry
 
 logger = logging.getLogger(__name__)
 
 
 class WebSocketConnectionHandler(AudioBroadcasterPort):
-    """Une instance par connexion active. Implémente AudioBroadcasterPort
-    pour pouvoir renvoyer l'audio TTS au candidat via ce même canal."""
+
 
     def __init__(
         self,
@@ -55,7 +54,9 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
         self._session: GatewaySession | None = None
         self._sequence = 0
 
-    # ---- Implémentation du port sortant AudioBroadcasterPort ----------
+        self._audio_queue: asyncio.Queue[bytes] = asyncio.Queue()
+        self._consumer_task: asyncio.Task | None = None
+
 
     async def envoyer_audio_candidat(self, session_id: SessionID, chunk: AudioChunk) -> None:
         await self._ws.send(chunk.data)
@@ -85,14 +86,34 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
 
         self._registry.enregistrer(session_id, self._session, self)
 
+
+        self._consumer_task = asyncio.create_task(self._consommer_audio())
+
         try:
             async for message in self._ws:
-                await self._traiter_message(message)
+                if isinstance(message, bytes):
+
+                    await self._audio_queue.put(message)
+                else:
+                    await self._traiter_message_controle(json.loads(message))
         except websockets.exceptions.ConnectionClosed as e:
             logger.warning("Connexion perdue pour %s : %s", session_id.value, e)
             await self._signal_disconnection.executer(self._session, raison=str(e))
         finally:
+            self._consumer_task.cancel()
             self._registry.retirer(session_id)
+
+    async def _consommer_audio(self) -> None:
+
+        try:
+            while True:
+                data = await self._audio_queue.get()
+                try:
+                    await self._traiter_chunk_audio(data)
+                except Exception:
+                    logger.exception("Erreur lors du traitement d'un chunk audio")
+        except asyncio.CancelledError:
+            pass
 
 
     async def _gerer_nouvelle_session(self, session_id: SessionID) -> None:
@@ -120,24 +141,20 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
             return
         await self._ws.send(json.dumps({"type": "reconnected"}))
 
-    async def _traiter_message(self, message) -> None:
-        if isinstance(message, bytes):
-            await self._traiter_chunk_audio(message)
-        else:
-            await self._traiter_message_controle(json.loads(message))
-
     async def _traiter_chunk_audio(self, data: bytes) -> None:
         if self._session is None:
             return
 
         self._sequence += 1
-        # AJOUT DE session_id=self._session.session_id ICI
         chunk = AudioChunk(
             session_id=self._session.session_id,
             data=data,
             sequence_number=self._sequence
         )
         silence = is_silence(data)
+        if self._sequence % 20 == 0:
+            
+            logger.debug("RMS=%.1f silence=%s", calculer_rms(data), silence)
         try:
             await self._receive_chunk.executer(self._session, chunk, silence_detecte=silence)
         except SessionNonActiveError as e:

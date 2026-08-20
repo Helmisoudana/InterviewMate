@@ -5,8 +5,7 @@ from shared.domain import AudioChunk
 
 class SilenceThresholdTurnDetector:
 
-    def __init__(self, seuil_silence_ms: int = 2500) -> None:
-        # Augmenté à 2500 ms (2.5 secondes) pour te laisser le temps de réfléchir
+    def __init__(self, seuil_silence_ms: int = 1500) -> None:
         self.seuil_silence_ms = seuil_silence_ms
         self._debut_silence: datetime | None = None
 
@@ -22,7 +21,6 @@ class SilenceThresholdTurnDetector:
         duree_ms = (chunk.captured_at - self._debut_silence).total_seconds() * 1000
         
         if duree_ms >= self.seuil_silence_ms:
-            # IMPORTANT : Remet à zéro pour ne pas redéclencher en boucle pendant les silences suivants
             self._debut_silence = None  
             return True
 

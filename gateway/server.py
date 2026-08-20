@@ -54,9 +54,9 @@ class ApplicationContainer:
         asr_repo = ASRSessionRegistry()
         recognizer = WhisperSpeechRecognizer(
             model_size_partiel="tiny",
-            model_size_final="base",
-            device="cpu",
-            compute_type="int8",
+            model_size_final="medium",
+            device="cuda",
+            compute_type="float16",
         )
         self.asr_client = InProcessASRClient(
             StartASRSessionUseCase(asr_repo),

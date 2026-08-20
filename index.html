@@ -42,7 +42,6 @@ function log(msg) {
 
 function setStatus(txt) { statusEl.textContent = txt; }
 
-// --- Conversion Float32 [-1,1] -> PCM16 little-endian ---
 function float32ToPCM16(float32Array) {
   const buf = new ArrayBuffer(float32Array.length * 2);
   const view = new DataView(buf);
@@ -73,7 +72,6 @@ function downsampleBuffer(buffer, inputRate, outputRate) {
   return result;
 }
 
-// --- Lecture des chunks audio PCM16 reçus du serveur (TTS) ---
 function playPCM16Chunk(arrayBuffer) {
   if (!audioCtx) return;
   const int16 = new Int16Array(arrayBuffer);
@@ -96,7 +94,6 @@ function playPCM16Chunk(arrayBuffer) {
 async function connecterEtParler() {
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   
-  // Reprendre l'AudioContext si le navigateur l'a mis en pause
   if (audioCtx.state === "suspended") {
     await audioCtx.resume();
   }
@@ -127,7 +124,6 @@ async function connecterEtParler() {
         log("🤖 Agent : " + payload.text);
       }
     } else {
-      // Réception des chunks audio binaire envoyés par Piper
       playPCM16Chunk(event.data);
     }
   };
@@ -158,9 +154,8 @@ async function demarrerMicro() {
       ws.send(pcm16);
     };
 
-    // Passer par un GainNode silencieux pour éviter le larsen tout en gardant le traitement actif
     gainNode = audioCtx.createGain();
-    gainNode.gain.value = 0; // Volume 0 pour couper le retour micro dans les haut-parleurs
+    gainNode.gain.value = 0; 
 
     sourceNode.connect(processorNode);
     processorNode.connect(gainNode);
