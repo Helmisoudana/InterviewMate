@@ -27,3 +27,5 @@ htmlcov/
 # Modèles de voix / IA lourds (ONNX)
 *.onnx
 *.onnx.json
+
+models
