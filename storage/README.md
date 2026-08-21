@@ -1,16 +1,34 @@
-# Module Storage
+# Module `storage`
 
 ## Rôle
-Conserve de façon permanente tout ce qui doit survivre après la fin d'une session :
-transcripts, rapports d'évaluation, historique par utilisateur.
+<!-- TODO: décrire le rôle fonctionnel du module (voir docs/modules_specification.md) -->
 
-## Ports exposés (entrants)
-- `TranscriptRepositoryPort` : sauvegarde/lecture des transcripts
-- `RapportRepositoryPort` : sauvegarde/lecture des rapports
+## Structure
 
-## Ports requis (sortants)
-- Aucun (module terminal / feuille)
+```
+storage/
+├── domain/            # Entités, value objects, règles métier pures (aucune dépendance externe)
+├── application/
+│   ├── ports/          # Interfaces (contrats) — ce dont le module a besoin de l'extérieur
+│   └── use_cases/       # Orchestrent le domaine via les ports
+├── infrastructure/
+│   ├── adapters/         # Implémentations concrètes des ports (API externes, DB...)
+│   └── fakes/            # Implémentations factices pour les tests / dev_runner
+└── dev_runner.py        # Point d'entrée LOCAL pour tester ce module isolément
+```
 
-## Statut
-- Implémentation actuelle : InMemoryStorageAdapter (fake, non persistant)
-- À faire : vrai adapter SQLAlchemy/Postgres
+## Ports exposés (in)
+<!-- TODO: lister les cas d'usage que ce module expose aux autres -->
+
+## Ports requis (out)
+<!-- TODO: lister les dépendances externes attendues (LLM, DB, etc.) -->
+
+## Tester ce module isolément
+```bash
+python -m storage.dev_runner
+```
+
+## Exceptions
+Ce module utilise les exceptions communes définies dans `common/exceptions.py`.
+Ne pas créer d'exceptions locales dupliquées — étendre `common/exceptions.py`
+si un nouveau type d'erreur métier générique est nécessaire.

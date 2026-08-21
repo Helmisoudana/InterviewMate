@@ -1,74 +1,42 @@
-"""
-Point d'entrée LOCAL du module `storage`.
-
-Ce fichier n'est PAS un point d'entrée de production (celui-ci est unique
-et se trouve à la racine du projet : main.py). Il sert uniquement à faire
-tourner ou tester ce module de façon isolée, pendant le développement,
-sans dépendre des autres modules ni du container.py global.
-
-Utilise les adapters "Fake" du module (infrastructure/fakes/) plutôt que
-les vrais adapters externes, pour rester rapide et indépendant.
-
-Lancer avec :
-    python -m storage.dev_runner
-"""
+import os
 import asyncio
+import asyncpg
+from dotenv import load_dotenv
+from storage.infrastructure.adapters.postgres_storage_repository import PostgresStorageRepository
+from storage.application.use_cases.save_latest_exchange import SaveLatestExchangeUseCase
 
-from shared.domain.value_objects import SessionID
-from storage.infrastructure.fakes.in_memory_storage_adapter import InMemoryStorageAdapter
-
+# Chargement du fichier .env à la racine
+load_dotenv()
 
 async def main():
-    storage = InMemoryStorageAdapter()
-    session_id = SessionID.generate()
+    # Lecture directe des variables d'environnement
+    user = os.getenv("DB_USER", "postgres")
+    password = os.getenv("DB_PASSWORD", "postgres")
+    host = os.getenv("DB_HOST", "localhost")
+    port = os.getenv("DB_PORT", "5432")
+    database = os.getenv("DB_NAME", "interviewmate_db")
 
-    print(f"=== Test storage, session {session_id} ===\n")
+    dsn = f"postgresql://{user}:{password}@{host}:{port}/{database}"
 
-    # 1. Sauvegarde d'un transcript
-    transcript = {
-        "user_id": "user-test-001",
-        "echanges": [
-            {"question": "Peux-tu expliquer la difference entre une liste et un tuple ?",
-             "reponse": "Une liste est mutable, un tuple est immutable en Python."},
-            {"question": "Comment gererais-tu une exception dans une API REST ?",
-             "reponse": "Je ne sais pas trop, peut-etre avec un try/except."},
-        ],
-    }
-    await storage.sauvegarder_transcript(session_id, transcript)
-    print("Transcript sauvegarde.")
+    pool = await asyncpg.create_pool(dsn=dsn)
+    try:
+        repo = PostgresStorageRepository(db_pool=pool)
+        use_case = SaveLatestExchangeUseCase(repository=repo)
 
-    # 2. Sauvegarde d'un rapport
-    rapport = {
-        "score_global": 0.5,
-        "points_forts": ["Bonne comprehension des bases Python"],
-        "points_faibles": ["Manque de precision sur la gestion d'erreurs"],
-        "recommandations": ["Approfondir les patterns de gestion d'exception en API REST"],
-    }
-    await storage.sauvegarder_rapport(session_id, rapport)
-    print("Rapport sauvegarde.\n")
+        resultat = await use_case.sauvegarder(
+            session_id="session_dev_test",
+            question_agent="Parlez-moi de votre expérience avec Python.",
+            reponse_candidat="J'ai développé plusieurs backend en Python.",
+            qualite_percue="Excellente"
+        )
 
-    # 3. Relecture du transcript
-    historique = await storage.recuperer_historique("user-test-001")
-    print(f"Historique recupere ({len(historique)} entree(s)) :")
-    print(historique)
-    print()
+        print(f"✅ Échange inséré avec succès !")
+        print(f" - ID Échange : {resultat.id}")
+        print(f" - ID Entretien (UUID) : {resultat.entretien_id}")
+        print(f" - Ordre : {resultat.ordre}")
 
-    # 4. Relecture du rapport
-    rapport_relu = await storage.recuperer_rapport(session_id)
-    print("Rapport relu :")
-    print(rapport_relu)
-    print()
-
-    # 5. Verification d'une session inexistante
-    rapport_absent = await storage.recuperer_rapport(SessionID.generate())
-    print(f"Rapport pour session inexistante : {rapport_absent}")
-
-    assert historique, "ECHEC : l'historique devrait contenir le transcript"
-    assert rapport_relu == rapport, "ECHEC : le rapport relu ne correspond pas a l'original"
-    assert rapport_absent is None, "ECHEC : une session inexistante devrait renvoyer None"
-
-    print("\n=== TOUS LES TESTS PASSENT ===")
-
+    finally:
+        await pool.close()
 
 if __name__ == "__main__":
     asyncio.run(main())

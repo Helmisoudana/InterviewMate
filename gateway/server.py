@@ -1,18 +1,18 @@
 from dotenv import load_dotenv
 load_dotenv()
+
+import os
 import asyncio
 import logging
-
+import asyncpg
 import websockets
-from agent.infrastructure.adapters.scoring_notifier_adapter import ScoringNotifierAdapter
-from scoring.application.use_cases.evaluer_echange import EvaluerEchangeUseCase
-from scoring.application.use_cases.generer_rapport_final import GenererRapportFinalUseCase
-from scoring.infrastructure.adapters.in_process_scoring_client import InProcessScoringClient
-from scoring.infrastructure.adapters.groq_adapter import GroqAdapter as ScoringGroqAdapter
-from storage.infrastructure.fakes.in_memory_storage_adapter import InMemoryStorageAdapter
-from scoring.domain.ports.storage_client_port import StorageClientPort
+
 from shared.domain.value_objects import SessionID
-from scoring.domain.entities.rapport_final import RapportFinal
+
+# Import du module Storage
+from storage.infrastructure.adapters.postgres_storage_repository import PostgresStorageRepository
+from storage.application.use_cases.save_latest_exchange import SaveLatestExchangeUseCase
+
 from asr.infrastructure.adapters.session_registry import ASRSessionRegistry
 from asr.infrastructure.adapters.sherpa_speech_recognizer import SherpaSpeechRecognizer
 from asr.application.use_cases.start_session import StartASRSessionUseCase
@@ -31,6 +31,7 @@ from gateway.infrastructure.adapters.in_process_tts_client import InProcessTTSCl
 
 from agent.infrastructure.adapters.session_registry import AgentSessionRegistry
 from agent.infrastructure.adapters.ollama_adapter import OllamaAdapter
+from agent.infrastructure.adapters.storage_notifier_adapter import StorageNotifierAdapter
 from agent.infrastructure.fakes.fake_session_repository_adapter import FakeSessionRepositoryAdapter
 from agent.application.use_cases.start_session import StartAgentSessionUseCase
 from agent.application.use_cases.conduire_entretien import ConduireEntretienUseCase
@@ -60,6 +61,9 @@ logger = logging.getLogger("gateway.server")
 class ApplicationContainer:
 
     def __init__(self) -> None:
+        self.db_pool: asyncpg.Pool | None = None
+        self.save_latest_exchange_uc: SaveLatestExchangeUseCase | None = None
+
         asr_repo = ASRSessionRegistry()
         recognizer = SherpaSpeechRecognizer(
             tokens="models/sherpa/sherpa-onnx-streaming-zipformer-fr-2023-04-14/tokens.txt",
@@ -69,7 +73,7 @@ class ApplicationContainer:
             num_threads=2,
             provider="cuda",
             enable_endpoint_detection=True,
-             rule1_min_trailing_silence=4.0,  
+            rule1_min_trailing_silence=4.0,  
             rule2_min_trailing_silence=3.0,  
             rule3_min_utterance_length=120.0,
         )
@@ -89,24 +93,13 @@ class ApplicationContainer:
             EndTTSSessionUseCase(tts_repo),
         )
 
-
-        self.storage_adapter = InMemoryStorageAdapter()
-        scoring_storage_client = StorageClientAdapter(self.storage_adapter)
-        scoring_llm = ScoringGroqAdapter()
-        evaluer_echange_uc = EvaluerEchangeUseCase(llm=scoring_llm)
-        generer_rapport_uc = GenererRapportFinalUseCase(storage_client=scoring_storage_client)
-        self.scoring_client = InProcessScoringClient(evaluer_echange_uc, generer_rapport_uc)
-
         agent_repo = FakeSessionRepositoryAdapter()
         agent_registry = AgentSessionRegistry()
         llm = OllamaAdapter(model="llama3:latest", keep_alive="30m")
-        notifier = ScoringNotifierAdapter(self.scoring_client)
-        self.agent_client = InProcessAgentClient(
-            StartAgentSessionUseCase(agent_repo, agent_registry),
-            ConduireEntretienUseCase(llm, agent_repo, notifier, agent_registry),
-            EndAgentSessionUseCase(agent_registry),
-        )
 
+        self.agent_repo = agent_repo
+        self.agent_registry = agent_registry
+        self.llm = llm
 
         session_store = InMemorySessionStore()
         self.session_client = InProcessSessionClient(
@@ -115,8 +108,40 @@ class ApplicationContainer:
             session_store,
         )
 
-
         self.gateway_registry = SessionRegistry()
+
+    async def init_storage(self) -> None:
+        """Initialise le pool BDD PostgreSQL et injecte le Storage Use Case via l'adaptateur."""
+        user = os.getenv("DB_USER", "postgres")
+        password = os.getenv("DB_PASSWORD", "postgres")
+        host = os.getenv("DB_HOST", "localhost")
+        port = os.getenv("DB_PORT", "5432")
+        database = os.getenv("DB_NAME", "interviewmate_db")
+
+        dsn = f"postgresql://{user}:{password}@{host}:{port}/{database}"
+        logger.info("Connexion à PostgreSQL sur %s:%s...", host, port)
+        self.db_pool = await asyncpg.create_pool(dsn=dsn)
+
+        # Création du Repository et Use Case Storage
+        storage_repo = PostgresStorageRepository(db_pool=self.db_pool)
+        self.save_latest_exchange_uc = SaveLatestExchangeUseCase(repository=storage_repo)
+
+        # Adaptateur reliant le ScoringNotifierPort de l'Agent au Use Case Storage
+        notifier = StorageNotifierAdapter(self.save_latest_exchange_uc)
+
+        # Injection dans ConduireEntretienUseCase
+        self.agent_client = InProcessAgentClient(
+            StartAgentSessionUseCase(self.agent_repo, self.agent_registry),
+            ConduireEntretienUseCase(
+                self.llm, 
+                self.agent_repo, 
+                notifier,  # <-- Adaptateur injecté à la place du Use Case direct
+                self.agent_registry
+            ),
+            EndAgentSessionUseCase(self.agent_registry),
+        )
+
+        # Assemblage des cas d'usage Gateway
         self.start_session_uc = StartSessionUseCase(
             self.session_client, self.asr_client, self.tts_client, self.agent_client
         )
@@ -128,8 +153,12 @@ class ApplicationContainer:
         self.signal_disconnection_uc = SignalDisconnectionUseCase(self.session_client)
         self.request_reconnection_uc = RequestReconnectionUseCase(self.session_client)
         self.close_session_uc = CloseSessionUseCase(
-            self.asr_client, self.tts_client, self.agent_client, self.scoring_client
+            self.asr_client, self.tts_client, self.agent_client,storage_repository=self.storage_repo
         )
+
+    async def close(self) -> None:
+        if self.db_pool:
+            await self.db_pool.close()
 
 
 async def handler_factory(container: ApplicationContainer, websocket) -> None:
@@ -149,35 +178,27 @@ async def handler_factory(container: ApplicationContainer, websocket) -> None:
 
 
 async def main(host: str = "0.0.0.0", port: int = 8765) -> None:
-    logger.info("Chargement des modèles (Whisper / Piper / Ollama)...")
+    logger.info("Chargement des modèles (Sherpa / Piper / Ollama)...")
     container = ApplicationContainer()
+    
+    # Initialisation de la BDD PostgreSQL et câblage des Use Cases
+    await container.init_storage()
 
     async def routed_handler(websocket):
         await handler_factory(container, websocket)
 
     logger.info("Serveur WebSocket démarré sur ws://%s:%s", host, port)
-    async with websockets.serve(
-        routed_handler, 
-        host, 
-        port,
-        ping_interval=30,
-    ):
-        await asyncio.Future() 
+    try:
+        async with websockets.serve(
+            routed_handler, 
+            host, 
+            port,
+            ping_interval=30,
+        ):
+            await asyncio.Future() 
+    finally:
+        await container.close()
 
-class StorageClientAdapter(StorageClientPort):
-    def __init__(self, storage: InMemoryStorageAdapter):
-        self._storage = storage
 
-    async def sauvegarder_rapport(self, rapport: RapportFinal) -> None:
-        await self._storage.sauvegarder_rapport(rapport.session_id, {
-            "score_global": rapport.score_global,
-            "points_forts": rapport.points_forts,
-            "points_faibles": rapport.points_faibles,
-            "recommandations": rapport.recommandations,
-            "evaluations": [
-                {"competence": e.competence, "score": e.score, "justification": e.justification}
-                for e in rapport.evaluations
-            ],
-        })
 if __name__ == "__main__":
     asyncio.run(main())
