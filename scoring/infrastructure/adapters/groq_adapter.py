@@ -5,7 +5,7 @@ from shared.domain.value_objects import Message
 
 
 class GroqAdapter(LLMPort):
-    def __init__(self, model: str = "llama-3.3-70b-versatile", api_key: str | None = None):
+    def __init__(self, model: str = "openai/gpt-oss-20b", api_key: str | None = None):
         self.model = model
         self._client = AsyncOpenAI(
             base_url="https://api.groq.com/openai/v1",

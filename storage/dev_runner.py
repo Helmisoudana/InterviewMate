@@ -12,19 +12,63 @@ les vrais adapters externes, pour rester rapide et indépendant.
 Lancer avec :
     python -m storage.dev_runner
 """
+import asyncio
+
+from shared.domain.value_objects import SessionID
+from storage.infrastructure.fakes.in_memory_storage_adapter import InMemoryStorageAdapter
 
 
-def main():
-    # TODO: instancier ici les Fakes du module et le(s) use case(s) à tester
-    # Exemple :
-    #   from storage.infrastructure.fakes.fake_adapter import Fake...Adapter
-    #   from storage.application.use_cases.... import ...UseCase
-    #
-    #   use_case = ...UseCase(dependency=Fake...Adapter())
-    #   result = use_case.execute(...)
-    #   print(result)
-    print("dev_runner de 'storage' — à compléter au fil du développement du module.")
+async def main():
+    storage = InMemoryStorageAdapter()
+    session_id = SessionID.generate()
+
+    print(f"=== Test storage, session {session_id} ===\n")
+
+    # 1. Sauvegarde d'un transcript
+    transcript = {
+        "user_id": "user-test-001",
+        "echanges": [
+            {"question": "Peux-tu expliquer la difference entre une liste et un tuple ?",
+             "reponse": "Une liste est mutable, un tuple est immutable en Python."},
+            {"question": "Comment gererais-tu une exception dans une API REST ?",
+             "reponse": "Je ne sais pas trop, peut-etre avec un try/except."},
+        ],
+    }
+    await storage.sauvegarder_transcript(session_id, transcript)
+    print("Transcript sauvegarde.")
+
+    # 2. Sauvegarde d'un rapport
+    rapport = {
+        "score_global": 0.5,
+        "points_forts": ["Bonne comprehension des bases Python"],
+        "points_faibles": ["Manque de precision sur la gestion d'erreurs"],
+        "recommandations": ["Approfondir les patterns de gestion d'exception en API REST"],
+    }
+    await storage.sauvegarder_rapport(session_id, rapport)
+    print("Rapport sauvegarde.\n")
+
+    # 3. Relecture du transcript
+    historique = await storage.recuperer_historique("user-test-001")
+    print(f"Historique recupere ({len(historique)} entree(s)) :")
+    print(historique)
+    print()
+
+    # 4. Relecture du rapport
+    rapport_relu = await storage.recuperer_rapport(session_id)
+    print("Rapport relu :")
+    print(rapport_relu)
+    print()
+
+    # 5. Verification d'une session inexistante
+    rapport_absent = await storage.recuperer_rapport(SessionID.generate())
+    print(f"Rapport pour session inexistante : {rapport_absent}")
+
+    assert historique, "ECHEC : l'historique devrait contenir le transcript"
+    assert rapport_relu == rapport, "ECHEC : le rapport relu ne correspond pas a l'original"
+    assert rapport_absent is None, "ECHEC : une session inexistante devrait renvoyer None"
+
+    print("\n=== TOUS LES TESTS PASSENT ===")
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

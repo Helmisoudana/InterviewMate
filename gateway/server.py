@@ -1,9 +1,18 @@
-
+from dotenv import load_dotenv
+load_dotenv()
 import asyncio
 import logging
 
 import websockets
-
+from agent.infrastructure.adapters.scoring_notifier_adapter import ScoringNotifierAdapter
+from scoring.application.use_cases.evaluer_echange import EvaluerEchangeUseCase
+from scoring.application.use_cases.generer_rapport_final import GenererRapportFinalUseCase
+from scoring.infrastructure.adapters.in_process_scoring_client import InProcessScoringClient
+from scoring.infrastructure.adapters.groq_adapter import GroqAdapter as ScoringGroqAdapter
+from storage.infrastructure.fakes.in_memory_storage_adapter import InMemoryStorageAdapter
+from scoring.domain.ports.storage_client_port import StorageClientPort
+from shared.domain.value_objects import SessionID
+from scoring.domain.entities.rapport_final import RapportFinal
 from asr.infrastructure.adapters.session_registry import ASRSessionRegistry
 from asr.infrastructure.adapters.whisper_speech_recognizer import WhisperSpeechRecognizer
 from asr.application.use_cases.start_session import StartASRSessionUseCase
@@ -22,7 +31,6 @@ from gateway.infrastructure.adapters.in_process_tts_client import InProcessTTSCl
 from agent.infrastructure.adapters.session_registry import AgentSessionRegistry
 from agent.infrastructure.adapters.ollama_adapter import OllamaAdapter
 from agent.infrastructure.fakes.fake_session_repository_adapter import FakeSessionRepositoryAdapter
-from agent.infrastructure.fakes.fake_scoring_notifier_adapter import FakeScoringNotifierAdapter
 from agent.application.use_cases.start_session import StartAgentSessionUseCase
 from agent.application.use_cases.conduire_entretien import ConduireEntretienUseCase
 from agent.application.use_cases.end_session import EndAgentSessionUseCase
@@ -74,10 +82,17 @@ class ApplicationContainer:
         )
 
 
-        agent_repo = FakeSessionRepositoryAdapter()  
+        self.storage_adapter = InMemoryStorageAdapter()
+        scoring_storage_client = StorageClientAdapter(self.storage_adapter)
+        scoring_llm = ScoringGroqAdapter()
+        evaluer_echange_uc = EvaluerEchangeUseCase(llm=scoring_llm)
+        generer_rapport_uc = GenererRapportFinalUseCase(storage_client=scoring_storage_client)
+        self.scoring_client = InProcessScoringClient(evaluer_echange_uc, generer_rapport_uc)
+
+        agent_repo = FakeSessionRepositoryAdapter()
         agent_registry = AgentSessionRegistry()
         llm = OllamaAdapter(model="llama3:latest", keep_alive="30m")
-        notifier = FakeScoringNotifierAdapter()
+        notifier = ScoringNotifierAdapter(self.scoring_client)
         self.agent_client = InProcessAgentClient(
             StartAgentSessionUseCase(agent_repo, agent_registry),
             ConduireEntretienUseCase(llm, agent_repo, notifier, agent_registry),
@@ -105,7 +120,7 @@ class ApplicationContainer:
         self.signal_disconnection_uc = SignalDisconnectionUseCase(self.session_client)
         self.request_reconnection_uc = RequestReconnectionUseCase(self.session_client)
         self.close_session_uc = CloseSessionUseCase(
-            self.asr_client, self.tts_client, self.agent_client
+            self.asr_client, self.tts_client, self.agent_client, self.scoring_client
         )
 
 
@@ -141,6 +156,20 @@ async def main(host: str = "0.0.0.0", port: int = 8765) -> None:
     ):
         await asyncio.Future() 
 
+class StorageClientAdapter(StorageClientPort):
+    def __init__(self, storage: InMemoryStorageAdapter):
+        self._storage = storage
 
+    async def sauvegarder_rapport(self, rapport: RapportFinal) -> None:
+        await self._storage.sauvegarder_rapport(rapport.session_id, {
+            "score_global": rapport.score_global,
+            "points_forts": rapport.points_forts,
+            "points_faibles": rapport.points_faibles,
+            "recommandations": rapport.recommandations,
+            "evaluations": [
+                {"competence": e.competence, "score": e.score, "justification": e.justification}
+                for e in rapport.evaluations
+            ],
+        })
 if __name__ == "__main__":
     asyncio.run(main())

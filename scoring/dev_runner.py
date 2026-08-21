@@ -3,18 +3,22 @@ Point d'entree LOCAL pour tester le module scoring seul, en isolation.
 Jamais utilise en production -- uniquement pour dev/debug.
 """
 import asyncio
-
+from dotenv import load_dotenv
+load_dotenv()
 from shared.domain.value_objects import SessionID, EchangeEvalue, InterviewStage
 from scoring.application.use_cases.evaluer_echange import EvaluerEchangeUseCase
 from scoring.application.use_cases.generer_rapport_final import GenererRapportFinalUseCase
 from scoring.infrastructure.adapters.in_process_scoring_client import InProcessScoringClient
 from scoring.infrastructure.fakes.fake_storage_client_adapter import FakeStorageClientAdapter
 
-# Passe a True pour utiliser le vrai Ollama, False pour le FakeLLMAdapter (rapide, pas besoin d'Ollama lance)
-UTILISER_VRAI_LLM = True
+# "fake" | "ollama" | "groq"
+MODE_LLM = "groq"
 
-if UTILISER_VRAI_LLM:
-    from scoring.infrastructure.adapters.groq_adapter import OllamaAdapter
+if MODE_LLM == "groq":
+    from scoring.infrastructure.adapters.groq_adapter import GroqAdapter
+    llm = GroqAdapter()
+elif MODE_LLM == "ollama":
+    from scoring.infrastructure.adapters.ollama_adapter import OllamaAdapter
     llm = OllamaAdapter(model="llama3:latest")
 else:
     from scoring.infrastructure.fakes.fake_llm_adapter import FakeLLMAdapter
@@ -30,7 +34,6 @@ async def main():
 
     client = InProcessScoringClient(evaluer_uc, generer_rapport_uc)
 
-    # Simulation de 3 echanges d'entretien
     echanges_test = [
         ("Peux-tu expliquer la difference entre une liste et un tuple ?",
          "Une liste est mutable, un tuple est immutable en Python."),
@@ -42,7 +45,7 @@ async def main():
          "avec un verrou (lock) autour de la section critique."),
     ]
 
-    print(f"=== Test scoring, session {session_id} ===\n")
+    print(f"=== Test scoring (mode={MODE_LLM}), session {session_id} ===\n")
 
     for question, reponse in echanges_test:
         echange = EchangeEvalue(
