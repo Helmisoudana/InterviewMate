@@ -153,7 +153,7 @@ class ApplicationContainer:
         self.signal_disconnection_uc = SignalDisconnectionUseCase(self.session_client)
         self.request_reconnection_uc = RequestReconnectionUseCase(self.session_client)
         self.close_session_uc = CloseSessionUseCase(
-            self.asr_client, self.tts_client, self.agent_client,storage_repository=self.storage_repo
+            self.asr_client, self.tts_client, self.agent_client, storage_repository=storage_repo
         )
 
     async def close(self) -> None:
