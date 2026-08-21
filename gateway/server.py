@@ -76,7 +76,7 @@ class ApplicationContainer:
 
         agent_repo = FakeSessionRepositoryAdapter()  
         agent_registry = AgentSessionRegistry()
-        llm = OllamaAdapter(model="llama3.1")
+        llm = OllamaAdapter(model="llama3:latest", keep_alive="30m")
         notifier = FakeScoringNotifierAdapter()
         self.agent_client = InProcessAgentClient(
             StartAgentSessionUseCase(agent_repo, agent_registry),
@@ -97,7 +97,7 @@ class ApplicationContainer:
         self.start_session_uc = StartSessionUseCase(
             self.session_client, self.asr_client, self.tts_client, self.agent_client
         )
-        self.receive_chunk_uc = ReceiveAudioChunkUseCase(self.asr_client, SilenceThresholdTurnDetector())
+        self.receive_chunk_uc = ReceiveAudioChunkUseCase(self.asr_client, SilenceThresholdTurnDetector(seuil_silence_ms=900))
         self.request_voice_uc = RequestVoiceResponseUseCase(self.tts_client)
         self.handle_transcription_uc = HandleTranscriptionResultUseCase(
             self.agent_client, self.request_voice_uc
