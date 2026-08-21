@@ -61,7 +61,7 @@ class ApplicationContainer:
             num_threads=2,
             provider="cuda",
             enable_endpoint_detection=True,
-             rule1_min_trailing_silence=4.0,  
+            rule1_min_trailing_silence=4.0,  
             rule2_min_trailing_silence=3.0,  
             rule3_min_utterance_length=120.0,
         )

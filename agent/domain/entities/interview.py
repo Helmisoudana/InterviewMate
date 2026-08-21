@@ -55,14 +55,3 @@ class Interview:
         phase_complete = self.phase_actuelle == InterviewPhase.CLOTURE and self.doit_changer_de_phase()
         return phase_complete or self.temps_ecoule_depasse()
 
-    def ajuster_difficulte(self, qualite_derniere_reponse: str) -> None:
-        if qualite_derniere_reponse == "vague":
-            if self.difficulte_actuelle == DifficultyLevel.DIFFICILE:
-                self.difficulte_actuelle = DifficultyLevel.MOYEN
-            elif self.difficulte_actuelle == DifficultyLevel.MOYEN:
-                self.difficulte_actuelle = DifficultyLevel.FACILE
-        elif qualite_derniere_reponse == "excellente":
-            if self.difficulte_actuelle == DifficultyLevel.FACILE:
-                self.difficulte_actuelle = DifficultyLevel.MOYEN
-            elif self.difficulte_actuelle == DifficultyLevel.MOYEN:
-                self.difficulte_actuelle = DifficultyLevel.DIFFICILE
