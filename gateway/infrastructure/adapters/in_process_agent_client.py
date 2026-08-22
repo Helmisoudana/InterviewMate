@@ -3,6 +3,8 @@ from gateway.domain.ports.agent_client_port import AgentClientPort
 from agent.application.use_cases.start_session import StartAgentSessionUseCase
 from agent.application.use_cases.conduire_entretien import ConduireEntretienUseCase
 from agent.application.use_cases.end_session import EndAgentSessionUseCase
+from agent.domain.entities.interview import Interview
+from agent.domain.value_objects.interview_phase import DureeEntretien, DifficultyLevel
 
 
 class InProcessAgentClient(AgentClientPort):
@@ -16,11 +18,18 @@ class InProcessAgentClient(AgentClientPort):
         self._conduire_uc = conduire_uc
         self._end_uc = end_uc
 
-    async def demarrer_session(self, session_id: SessionID) -> None:
-        await self._start_uc.executer(session_id)
+    async def demarrer_session(
+        self,
+        session_id: SessionID,
+        poste: str,
+        langue: str,
+        duree: DureeEntretien,
+        difficulte: DifficultyLevel = DifficultyLevel.MOYEN,
+    ) -> str:
+        return await self._start_uc.executer(session_id, poste, langue, duree, difficulte)
 
     async def traiter_reponse(self, session_id: SessionID, texte_reponse: str) -> tuple[str, bool]:
         return await self._conduire_uc.traiter_reponse_candidat(session_id, texte_reponse)
 
-    async def terminer_session(self, session_id: SessionID) -> None:
-        await self._end_uc.executer(session_id)
+    async def terminer_session(self, session_id: SessionID) -> Interview:
+        return await self._end_uc.executer(session_id)

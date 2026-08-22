@@ -1,9 +1,10 @@
-from dataclasses import dataclass
-from agent.domain.entities.question import Question
-from agent.domain.entities.reponse import Reponse
+from dataclasses import dataclass, field
+from datetime import datetime
+from agent.domain.value_objects.interview_phase import InterviewPhase
 
 
 @dataclass
 class Echange:
-    question: Question
-    reponse: Reponse | None = None
+    question: str
+    phase: InterviewPhase
+    reponse: str | None = None

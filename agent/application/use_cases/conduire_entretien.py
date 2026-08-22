@@ -1,95 +1,55 @@
-import json
-from agent.domain.entities.interview import Interview
-from agent.domain.entities.question import Question
-from agent.domain.entities.reponse import Reponse
 from agent.domain.entities.echange import Echange
 from agent.domain.services.system_prompt_builder import construire_prompt_systeme
+from agent.domain.services.llm_json_client import appeler_llm_json
 from agent.domain.ports.llm_port import LLMPort
-from agent.domain.ports.session_repository_port import SessionRepositoryPort
-from agent.domain.ports.scoring_notifier_port import ScoringNotifierPort
+from agent.domain.ports.Storage_notifier_port import StorageNotifierPort
 from agent.domain.value_objects.message import Message
+from agent.domain.value_objects.interview_phase import InterviewPhase, DifficultyLevel
 from agent.infrastructure.adapters.session_registry import AgentSessionRegistry
 from shared.domain import SessionID
-
-MAX_TENTATIVES_REGENERATION = 3
 
 
 class ConduireEntretienUseCase:
     def __init__(
         self,
         llm: LLMPort,
-        session_repo: SessionRepositoryPort,
-        scoring_notifier: ScoringNotifierPort,
-        registry: AgentSessionRegistry | None = None,
+        registry: AgentSessionRegistry,
+        storage_notifier: StorageNotifierPort | None = None,
     ):
         self.llm = llm
-        self.session_repo = session_repo
-        self.scoring_notifier = scoring_notifier
         self.registry = registry
-
-    async def _appeler_llm(self, messages: list[Message]) -> dict:
-        texte = ""
-        async for token in self.llm.stream_completion(messages):
-            texte += token
-        try:
-            return json.loads(texte)
-        except json.JSONDecodeError:
-            return {"qualite": "correcte", "comportement_inapproprie": False, "question": texte.strip()}
-
-    async def _generer_reponse_valide(self, interview: Interview, messages: list[Message]) -> dict:
-        for _ in range(MAX_TENTATIVES_REGENERATION):
-            resultat = await self._appeler_llm(messages)
-            if interview.peut_poser_question(resultat.get("question", "")):
-                return resultat
-        raise ValueError(f"Impossible de generer une question inedite apres {MAX_TENTATIVES_REGENERATION} tentatives")
+        self.storage_notifier = storage_notifier
 
     async def traiter_reponse_candidat(self, session_id: SessionID | str, texte_reponse: str) -> tuple[str, bool]:
         session_id_str = session_id.value if isinstance(session_id, SessionID) else session_id
-        if self.registry is not None and not self.registry.est_active(session_id_str):
-            raise ValueError(f"Session Agent inconnue ou inactive : {session_id_str}")
-        
-        interview = await self.session_repo.get(session_id_str)
+        interview = self.registry.obtenir(session_id_str)
 
-        if interview.est_terminee():
-            await self.session_repo.save(session_id_str, interview)
-            return "", True
+        if interview.echanges:
+            interview.echanges[-1].reponse = texte_reponse
 
         prompt_systeme = construire_prompt_systeme(interview)
         messages = [
             Message(role="system", content=prompt_systeme),
             Message(role="user", content=texte_reponse),
         ]
+        resultat = await appeler_llm_json(self.llm, messages)
 
-        resultat = await self._generer_reponse_valide(interview, messages)
+        if interview.echanges and self.storage_notifier is not None:
+            await self.storage_notifier.notifier_echange_termine(session_id_str, interview.echanges[-1])
 
-        qualite = resultat.get("qualite", "correcte")
-        comportement_inapproprie = resultat.get("comportement_inapproprie", False)
-        nouvelle_question_texte = resultat.get("question", "")
+        interview.difficulte_actuelle = DifficultyLevel(
+            resultat.get("difficulte_suivante", interview.difficulte_actuelle.value)
+        )
 
-        if interview.echanges:
-            interview.echanges[-1].reponse = Reponse(texte=texte_reponse, qualite_percue=qualite)
-            interview.ajuster_difficulte(qualite)
-            await self.scoring_notifier.notifier_echange_termine(session_id_str, interview.echanges[-1])
+        if resultat.get("changement_phase") and resultat.get("phase_suivante"):
+            interview.phase_actuelle = InterviewPhase(resultat["phase_suivante"])
 
-        if comportement_inapproprie:
-            interview.signaler_refus()
-        else:
-            interview.reinitialiser_refus()
-
-        if interview.doit_arreter_anticipativement():
-            await self.session_repo.save(session_id_str, interview)
-            return "Entretien interrompu suite a un comportement inapproprie repete.", True
-
-        if interview.doit_changer_de_phase():
-            interview.passer_phase_suivante()
-
-        if interview.est_terminee():
-            await self.session_repo.save(session_id_str, interview)
+        if resultat.get("entretien_termine"):
+            self.registry.sauvegarder(session_id_str, interview)
             return "", True
 
-        nouvelle_question = Question(texte=nouvelle_question_texte, phase=interview.phase_actuelle)
-        interview.echanges.append(Echange(question=nouvelle_question))
+        nouvelle_question = resultat.get("question", "")
+        interview.echanges.append(Echange(question=nouvelle_question, phase=interview.phase_actuelle))
+        self.registry.sauvegarder(session_id_str, interview)
 
-        await self.session_repo.save(session_id_str, interview)
-
-        return nouvelle_question_texte, False
+        return nouvelle_question, False

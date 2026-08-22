@@ -11,6 +11,8 @@ from shared.domain import AudioChunk
 from gateway.domain.ports.audio_broadcaster_port import AudioBroadcasterPort
 from gateway.domain.ports.asr_client_port import ASRClientPort
 
+from agent.domain.value_objects.interview_phase import DureeEntretien, DifficultyLevel
+
 from gateway.application.use_cases.start_session import StartSessionUseCase, SessionInvalideError
 from gateway.application.use_cases.receive_audio_chunk import ReceiveAudioChunkUseCase
 from gateway.application.use_cases.request_voice_response import RequestVoiceResponseUseCase
@@ -26,7 +28,6 @@ logger = logging.getLogger(__name__)
 
 
 class WebSocketConnectionHandler(AudioBroadcasterPort):
-
 
     def __init__(
         self,
@@ -57,13 +58,11 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
         self._audio_queue: asyncio.Queue[bytes] = asyncio.Queue()
         self._consumer_task: asyncio.Task | None = None
 
-
     async def envoyer_audio_candidat(self, session_id: SessionID, chunk: AudioChunk) -> None:
         await self._ws.send(chunk.data)
 
     async def envoyer_texte(self, session_id: SessionID, type_message: str, texte: str) -> None:
         await self._ws.send(json.dumps({"type": type_message, "text": texte}))
-
 
     async def gerer_connexion(self) -> None:
         try:
@@ -75,24 +74,23 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
             return
 
         est_reconnexion = init.get("reconnect", False)
+        config = init.get("config", {}) or {}
 
         if est_reconnexion:
             await self._gerer_reconnexion(session_id)
         else:
-            await self._gerer_nouvelle_session(session_id)
+            await self._gerer_nouvelle_session(session_id, config)
 
         if self._session is None:
-            return  
+            return
 
         self._registry.enregistrer(session_id, self._session, self)
-
 
         self._consumer_task = asyncio.create_task(self._consommer_audio())
 
         try:
             async for message in self._ws:
                 if isinstance(message, bytes):
-
                     await self._audio_queue.put(message)
                 else:
                     await self._traiter_message_controle(json.loads(message))
@@ -104,7 +102,6 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
             self._registry.retirer(session_id)
 
     async def _consommer_audio(self) -> None:
-
         try:
             while True:
                 data = await self._audio_queue.get()
@@ -115,17 +112,47 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
         except asyncio.CancelledError:
             pass
 
-
-    async def _gerer_nouvelle_session(self, session_id: SessionID) -> None:
+    async def _gerer_nouvelle_session(self, session_id: SessionID, config: dict) -> None:
         self._session = GatewaySession(session_id)
+
+        poste = config.get("poste") or "Poste non spécifié"
+        langue = config.get("langue") or "fr"
+
+        duree_raw = str(config.get("duree", "MOYENNE")).upper()
         try:
-            await self._start_session.executer(self._session)
+            duree = DureeEntretien[duree_raw]
+        except KeyError:
+            await self._ws.close(code=4002, reason=f"duree invalide: {duree_raw}")
+            self._session = None
+            return
+
+        difficulte_raw = str(config.get("difficulte", "MOYEN")).upper()
+        try:
+            difficulte = DifficultyLevel[difficulte_raw]
+        except KeyError:
+            await self._ws.close(code=4002, reason=f"difficulte invalide: {difficulte_raw}")
+            self._session = None
+            return
+
+        try:
+            message_bienvenue = await self._start_session.executer(
+                self._session,
+                language=langue,
+                poste=poste,
+                duree=duree,
+                difficulte=difficulte,
+            )
             self._asr_client.souscrire_resultats(session_id, self._traiter_resultat_asr)
         except SessionInvalideError as e:
             await self._ws.close(code=4001, reason=str(e))
             self._session = None
             return
+
         await self._ws.send(json.dumps({"type": "session_ready"}))
+
+        if message_bienvenue:
+            await self.envoyer_texte(session_id, "agent_message", message_bienvenue)
+            await self._request_voice.executer(self._session, message_bienvenue, broadcaster=self)
 
     async def _gerer_reconnexion(self, session_id: SessionID) -> None:
         existante = self._registry.obtenir(session_id)
@@ -153,7 +180,6 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
         )
         silence = is_silence(data)
         if self._sequence % 20 == 0:
-            
             logger.debug("RMS=%.1f silence=%s", calculer_rms(data), silence)
         try:
             await self._receive_chunk.executer(self._session, chunk, silence_detecte=silence)
@@ -165,7 +191,6 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
             await self._close_session.executer(self._session, raison="fermeture demandée par le client")
             await self._ws.close(code=1000)
 
-    
     async def _traiter_resultat_asr(self, resultat) -> None:
         if not resultat.is_final or self._session is None:
             return
