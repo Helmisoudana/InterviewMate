@@ -1,4 +1,4 @@
-from gateway.domain.ports.scoring_client_port import ScoringClientPort
+from gateway.domain.ports.storage_client_port import ScoringClientPort
 from scoring.domain.entities.rapport_score import RapportScore
 from scoring.application.use_cases.generer_rapport_session import GenererRapportSessionUseCase
 

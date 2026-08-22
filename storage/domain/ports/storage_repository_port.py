@@ -6,6 +6,11 @@ from storage.domain.entities.rapport import RapportScorePersiste
 class StorageRepositoryPort(ABC):
 
     @abstractmethod
+    async def initialiser_entretien(self, session_id: str) -> None:
+        """Cree l'entretien en base des le debut de session (statut EN_COURS), avant le premier echange."""
+        pass
+
+    @abstractmethod
     async def sauvegarder_dernier_echange(self, echange: EchangePersiste) -> EchangePersiste:
         """Persiste le dernier échange reçu et gère la session entretien dans PostgreSQL."""
         pass

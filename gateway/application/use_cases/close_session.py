@@ -3,7 +3,7 @@ from gateway.domain.entities.entities import GatewaySession
 from gateway.domain.ports.asr_client_port import ASRClientPort
 from gateway.domain.ports.tts_client_port import TTSClientPort
 from gateway.domain.ports.agent_client_port import AgentClientPort
-from storage.domain.ports.storage_repository_port import StorageRepositoryPort
+from gateway.domain.ports.storage_client_port import StorageClientPort
 
 
 class CloseSessionUseCase:
@@ -12,13 +12,13 @@ class CloseSessionUseCase:
         asr_client: ASRClientPort,
         tts_client: TTSClientPort,
         agent_client: AgentClientPort,
-        storage_repository: Optional[StorageRepositoryPort] = None,
+        storage_client: Optional[StorageClientPort] = None,
         scoring_client: Optional[object] = None,
     ) -> None:
         self._asr_client = asr_client
         self._tts_client = tts_client
         self._agent_client = agent_client
-        self._storage_repository = storage_repository
+        self._storage_client = storage_client
         self._scoring_client = scoring_client
 
     async def executer(self, session: GatewaySession, raison: str = "fin normale"):
@@ -26,12 +26,10 @@ class CloseSessionUseCase:
         await self._tts_client.terminer_session(session.session_id)
         await self._agent_client.terminer_session(session.session_id)
 
-        # Passage du statut de l'entretien à TERMINE
-        if self._storage_repository:
-            await self._storage_repository.mettre_a_jour_statut(
-                session_id=session.session_id,
-                statut="TERMINE"
-            )
+        # Passage du statut de l'entretien à TERMINE, via le client storage
+        # (meme pattern que asr_client/tts_client/agent_client, plus de storage_repository direct)
+        if self._storage_client:
+            await self._storage_client.terminer_session(session.session_id)
 
         rapport = None
         if self._scoring_client:

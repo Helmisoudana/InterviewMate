@@ -18,6 +18,7 @@ def _charger_requete(nom_fichier: str) -> str:
         return f.read().strip().rstrip(";")
 
 
+INIT_ENTRETIEN_QUERY = _charger_requete("initialiser_entretien.sql")
 SAVE_EXCHANGE_QUERY = _charger_requete("save_exchange.sql")
 UPDATE_STATUS_QUERY = _charger_requete("update_status.sql")
 GET_ECHANGES_QUERY = _charger_requete("get_echanges_by_session.sql")
@@ -52,6 +53,11 @@ class PostgresStorageRepository(StorageRepositoryPort):
         """Ferme le pool de connexions. A appeler explicitement au shutdown de l'application."""
         if self._db_pool:
             await self._db_pool.close()
+
+    async def initialiser_entretien(self, session_id: str) -> None:
+        """Cree l'entretien en base des le debut de session (statut EN_COURS), avant le premier echange."""
+        async with self._db_pool.acquire() as connection:
+            await connection.execute(INIT_ENTRETIEN_QUERY, str(session_id))
 
     async def sauvegarder_dernier_echange(self, echange: EchangePersiste) -> EchangePersiste:
         async with self._db_pool.acquire() as connection:

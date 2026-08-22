@@ -21,6 +21,10 @@ class FakeStorageRepository(StorageRepositoryPort):
             self._entretien_ids[session_id] = str(uuid.uuid4())
         return self._entretien_ids[session_id]
 
+    async def initialiser_entretien(self, session_id: str) -> None:
+        self._entretien_id_pour(session_id)
+        self._statuts.setdefault(session_id, "EN_COURS")
+
     async def sauvegarder_dernier_echange(self, echange: EchangePersiste) -> EchangePersiste:
         historique = self._echanges.setdefault(echange.session_id, [])
         echange.id = len(historique) + 1
