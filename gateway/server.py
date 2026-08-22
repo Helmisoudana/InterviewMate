@@ -1,9 +1,18 @@
+from dotenv import load_dotenv
+load_dotenv()
 
 import asyncio
 import logging
-
 import websockets
 
+# --- Module Storage ---
+from storage.infrastructure.adapters.postgres_storage_repository import PostgresStorageRepository
+from storage.application.use_cases.save_latest_exchange import SaveLatestExchangeUseCase
+from storage.application.use_cases.start_session import StartStorageSessionUseCase
+from storage.application.use_cases.end_session import EndStorageSessionUseCase
+from gateway.infrastructure.adapters.in_process_storage_client import InProcessStorageClient
+
+# --- Module ASR ---
 from asr.infrastructure.adapters.session_registry import ASRSessionRegistry
 from asr.infrastructure.adapters.sherpa_speech_recognizer import SherpaSpeechRecognizer
 from asr.application.use_cases.start_session import StartASRSessionUseCase
@@ -13,6 +22,7 @@ from asr.application.use_cases.end_session import EndASRSessionUseCase
 from asr.application.use_cases.check_endpoint import CheckEndpointUseCase
 from gateway.infrastructure.adapters.in_process_asr_client import InProcessASRClient
 
+# --- Module TTS ---
 from tts.infrastructure.adapters.session_registry import TTSSessionRegistry
 from tts.infrastructure.adapters.piper_speech_synthesizer import PiperSpeechSynthesizer
 from tts.application.use_cases.start_session import StartTTSSessionUseCase
@@ -20,20 +30,22 @@ from tts.application.use_cases.synthesize_text import SynthesizeTextUseCase
 from tts.application.use_cases.end_session import EndTTSSessionUseCase
 from gateway.infrastructure.adapters.in_process_tts_client import InProcessTTSClient
 
+# --- Module Agent ---
 from agent.infrastructure.adapters.session_registry import AgentSessionRegistry
 from agent.infrastructure.adapters.ollama_adapter import OllamaAdapter
-from agent.infrastructure.fakes.fake_session_repository_adapter import FakeSessionRepositoryAdapter
-from agent.infrastructure.fakes.fake_scoring_notifier_adapter import FakeScoringNotifierAdapter
+from agent.infrastructure.adapters.storage_notifier_adapter import StorageNotifierAdapter
 from agent.application.use_cases.start_session import StartAgentSessionUseCase
 from agent.application.use_cases.conduire_entretien import ConduireEntretienUseCase
 from agent.application.use_cases.end_session import EndAgentSessionUseCase
 from gateway.infrastructure.adapters.in_process_agent_client import InProcessAgentClient
 
+# --- Module Session ---
 from session.infrastructure.adapters.in_memory_session_store import InMemorySessionStore
 from session.application.use_cases.create_session import CreateSessionUseCase
 from session.application.use_cases.get_session_state import GetSessionStateUseCase
 from gateway.infrastructure.adapters.in_process_session_client import InProcessSessionClient
 
+# --- Module Gateway ---
 from gateway.application.use_cases.start_session import StartSessionUseCase
 from gateway.application.use_cases.receive_audio_chunk import ReceiveAudioChunkUseCase
 from gateway.application.use_cases.request_voice_response import RequestVoiceResponseUseCase
@@ -61,13 +73,13 @@ class ApplicationContainer:
             num_threads=2,
             provider="cuda",
             enable_endpoint_detection=True,
-            rule1_min_trailing_silence=4.0,  
-            rule2_min_trailing_silence=3.0,  
+            rule1_min_trailing_silence=4.0,
+            rule2_min_trailing_silence=3.0,
             rule3_min_utterance_length=120.0,
         )
         self.asr_client = InProcessASRClient(
             StartASRSessionUseCase(asr_repo),
-            ProcessAudioChunkUseCase(recognizer, asr_repo, intervalle_chunks=1), 
+            ProcessAudioChunkUseCase(recognizer, asr_repo, intervalle_chunks=1),
             FinalizeTurnUseCase(recognizer, asr_repo),
             EndASRSessionUseCase(asr_repo),
             CheckEndpointUseCase(recognizer),
@@ -81,17 +93,13 @@ class ApplicationContainer:
             EndTTSSessionUseCase(tts_repo),
         )
 
-
-        agent_repo = FakeSessionRepositoryAdapter()  
         agent_registry = AgentSessionRegistry()
         llm = OllamaAdapter(model="qwen2.5:7b-instruct")
-        notifier = FakeScoringNotifierAdapter()
         self.agent_client = InProcessAgentClient(
-            StartAgentSessionUseCase(agent_repo, agent_registry),
-            ConduireEntretienUseCase(llm, agent_repo, notifier, agent_registry),
+            StartAgentSessionUseCase(llm, agent_registry),
+            ConduireEntretienUseCase(llm, agent_registry),
             EndAgentSessionUseCase(agent_registry),
         )
-
 
         session_store = InMemorySessionStore()
         self.session_client = InProcessSessionClient(
@@ -100,10 +108,22 @@ class ApplicationContainer:
             session_store,
         )
 
-
         self.gateway_registry = SessionRegistry()
+
+        self.storage_repo = PostgresStorageRepository.creer_depuis_env()
+        self.save_latest_exchange_uc = SaveLatestExchangeUseCase(repository=self.storage_repo)
+
+        storage_client = InProcessStorageClient(
+            StartStorageSessionUseCase(self.storage_repo),
+            EndStorageSessionUseCase(self.storage_repo),
+        )
+        self.storage_client = storage_client
+        
+
+        # --- Assemblage des cas d'usage Gateway ---
         self.start_session_uc = StartSessionUseCase(
-            self.session_client, self.asr_client, self.tts_client, self.agent_client
+            self.session_client, self.asr_client, self.tts_client, self.agent_client,
+            storage_client=storage_client,
         )
         self.receive_chunk_uc = ReceiveAudioChunkUseCase(self.asr_client, SherpaTurnDetectorAdapter(self.asr_client))
         self.request_voice_uc = RequestVoiceResponseUseCase(self.tts_client)
@@ -113,8 +133,15 @@ class ApplicationContainer:
         self.signal_disconnection_uc = SignalDisconnectionUseCase(self.session_client)
         self.request_reconnection_uc = RequestReconnectionUseCase(self.session_client)
         self.close_session_uc = CloseSessionUseCase(
-            self.asr_client, self.tts_client, self.agent_client
+            self.asr_client,
+            self.tts_client,
+            self.agent_client,
+            storage_client=storage_client,
         )
+
+    async def close(self) -> None:
+        if self.storage_repo:
+            await self.storage_repo.fermer()
 
 
 async def handler_factory(container: ApplicationContainer, websocket) -> None:
@@ -134,20 +161,23 @@ async def handler_factory(container: ApplicationContainer, websocket) -> None:
 
 
 async def main(host: str = "0.0.0.0", port: int = 8765) -> None:
-    logger.info("Chargement des modèles (Whisper / Piper / Ollama)...")
+    logger.info("Chargement des modèles (Sherpa / Piper / Ollama)...")
     container = ApplicationContainer()
 
     async def routed_handler(websocket):
         await handler_factory(container, websocket)
 
     logger.info("Serveur WebSocket démarré sur ws://%s:%s", host, port)
-    async with websockets.serve(
-        routed_handler, 
-        host, 
-        port,
-        ping_interval=30,
-    ):
-        await asyncio.Future() 
+    try:
+        async with websockets.serve(
+            routed_handler,
+            host,
+            port,
+            ping_interval=30,
+        ):
+            await asyncio.Future()
+    finally:
+        await container.close()
 
 
 if __name__ == "__main__":

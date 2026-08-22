@@ -1,6 +1,7 @@
-
 from __future__ import annotations
 
+import time
+import logging
 import asyncio
 import numpy as np
 from faster_whisper import WhisperModel
@@ -10,6 +11,8 @@ from shared.domain import SessionID, TranscriptionResult
 SAMPLE_RATE = 16_000
 OCTETS_PAR_ECHANTILLON = 2  
 DUREE_MIN_SECONDES = 0.3
+
+logger = logging.getLogger("asr.whisper")
 
 
 class WhisperSpeechRecognizer:
@@ -71,13 +74,18 @@ class WhisperSpeechRecognizer:
         if self._duree_secondes(audio) < DUREE_MIN_SECONDES:
             return TranscriptionResult(session_id=session_id, is_final=True, text="", confidence=0.0)
 
+        debut = time.perf_counter()
+
         segments, _info = self._model_final.transcribe(
             audio,
             language=language,
             beam_size=5,
             vad_filter=True,
         )
-        return self._construire_resultat(session_id, segments, is_final=True)
+        resultat = self._construire_resultat(session_id, segments, is_final=True)
+
+        logger.info("[TIMING] ASR (transcription finale) : %.2fs", time.perf_counter() - debut)
+        return resultat
 
     def _construire_resultat(self, session_id: SessionID, segments, is_final: bool) -> TranscriptionResult:
         segments = list(segments) 

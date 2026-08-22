@@ -96,3 +96,10 @@ class Message:
     role: str  
     content: str
     timestamp: float = field(default_factory=time.time)
+    
+@dataclass(frozen=True)
+class EchangeEvalue:
+    session_id: SessionID
+    question: str
+    reponse: str
+    phase: InterviewStage
