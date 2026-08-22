@@ -4,6 +4,7 @@ from asr.application.use_cases.start_session import StartASRSessionUseCase
 from asr.application.use_cases.process_audio_chunk import ProcessAudioChunkUseCase
 from asr.application.use_cases.finalize_turn import FinalizeTurnUseCase
 from asr.application.use_cases.end_session import EndASRSessionUseCase
+from asr.application.use_cases.check_endpoint import CheckEndpointUseCase
 
 
 class InProcessASRClient(ASRClientPort):
@@ -13,11 +14,13 @@ class InProcessASRClient(ASRClientPort):
         process_uc: ProcessAudioChunkUseCase,
         finalize_uc: FinalizeTurnUseCase,
         end_uc: EndASRSessionUseCase,
+        check_endpoint_uc: CheckEndpointUseCase | None = None,
     ) -> None:
         self._start_uc = start_uc
         self._process_uc = process_uc
         self._finalize_uc = finalize_uc
         self._end_uc = end_uc
+        self._check_endpoint_uc = check_endpoint_uc
         self._callbacks: dict[str, ResultCallback] = {}
 
     def souscrire_resultats(self, session_id: SessionID, callback: ResultCallback) -> None:
@@ -41,3 +44,8 @@ class InProcessASRClient(ASRClientPort):
     async def terminer_session(self, session_id: SessionID) -> None:
         self._end_uc.executer(session_id)
         self._callbacks.pop(session_id.value, None)
+
+    def est_fin_de_parole_detectee(self, session_id: SessionID) -> bool:
+        if self._check_endpoint_uc is None:
+            return False
+        return self._check_endpoint_uc.executer(session_id)

@@ -3,6 +3,11 @@ from agent.domain.ports.session_repository_port import SessionRepositoryPort
 from agent.infrastructure.adapters.session_registry import AgentSessionRegistry
 from shared.domain import SessionID
 
+MESSAGE_ACCUEIL_PAR_DEFAUT = (
+    "Bonjour et bienvenue à cet entretien technique. "
+    "Je serai votre recruteur aujourd'hui. "
+    "Installez-vous confortablement. Quand vous êtes prêt, dites-moi simplement 'Je suis prêt' pour commencer."
+)
 
 class StartAgentSessionUseCase:
     def __init__(self, session_repo: SessionRepositoryPort, registry: AgentSessionRegistry) -> None:
@@ -11,4 +16,6 @@ class StartAgentSessionUseCase:
 
     async def executer(self, session_id: SessionID) -> None:
         self._registry.enregistrer(session_id.value)
+        Interview =Interview()
+        
         await self._session_repo.save(session_id.value, Interview())

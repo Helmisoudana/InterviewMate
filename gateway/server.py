@@ -5,11 +5,12 @@ import logging
 import websockets
 
 from asr.infrastructure.adapters.session_registry import ASRSessionRegistry
-from asr.infrastructure.adapters.whisper_speech_recognizer import WhisperSpeechRecognizer
+from asr.infrastructure.adapters.sherpa_speech_recognizer import SherpaSpeechRecognizer
 from asr.application.use_cases.start_session import StartASRSessionUseCase
 from asr.application.use_cases.process_audio_chunk import ProcessAudioChunkUseCase
 from asr.application.use_cases.finalize_turn import FinalizeTurnUseCase
 from asr.application.use_cases.end_session import EndASRSessionUseCase
+from asr.application.use_cases.check_endpoint import CheckEndpointUseCase
 from gateway.infrastructure.adapters.in_process_asr_client import InProcessASRClient
 
 from tts.infrastructure.adapters.session_registry import TTSSessionRegistry
@@ -42,7 +43,7 @@ from gateway.application.use_cases.request_reconnection import RequestReconnecti
 from gateway.application.use_cases.close_session import CloseSessionUseCase
 from gateway.infrastructure.adapters.session_registry import SessionRegistry
 from gateway.infrastructure.adapters.websocket_gateway_adapter import WebSocketConnectionHandler
-from gateway.infrastructure.adapters.silence_threshold_turn_detector import SilenceThresholdTurnDetector
+from gateway.infrastructure.adapters.sherpa_turn_detector import SherpaTurnDetectorAdapter
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("gateway.server")
@@ -52,17 +53,24 @@ class ApplicationContainer:
 
     def __init__(self) -> None:
         asr_repo = ASRSessionRegistry()
-        recognizer = WhisperSpeechRecognizer(
-            model_size_partiel="tiny",
-            model_size_final="medium",
-            device="cuda",
-            compute_type="float16",
+        recognizer = SherpaSpeechRecognizer(
+            tokens="models/sherpa/sherpa-onnx-streaming-zipformer-fr-2023-04-14/tokens.txt",
+            encoder="models/sherpa/sherpa-onnx-streaming-zipformer-fr-2023-04-14/encoder-epoch-29-avg-9-with-averaged-model.int8.onnx",
+            decoder="models/sherpa/sherpa-onnx-streaming-zipformer-fr-2023-04-14/decoder-epoch-29-avg-9-with-averaged-model.onnx",
+            joiner="models/sherpa/sherpa-onnx-streaming-zipformer-fr-2023-04-14/joiner-epoch-29-avg-9-with-averaged-model.int8.onnx",
+            num_threads=2,
+            provider="cuda",
+            enable_endpoint_detection=True,
+            rule1_min_trailing_silence=4.0,  
+            rule2_min_trailing_silence=3.0,  
+            rule3_min_utterance_length=120.0,
         )
         self.asr_client = InProcessASRClient(
             StartASRSessionUseCase(asr_repo),
-            ProcessAudioChunkUseCase(recognizer, asr_repo),
+            ProcessAudioChunkUseCase(recognizer, asr_repo, intervalle_chunks=1), 
             FinalizeTurnUseCase(recognizer, asr_repo),
             EndASRSessionUseCase(asr_repo),
+            CheckEndpointUseCase(recognizer),
         )
 
         tts_repo = TTSSessionRegistry()
@@ -76,7 +84,7 @@ class ApplicationContainer:
 
         agent_repo = FakeSessionRepositoryAdapter()  
         agent_registry = AgentSessionRegistry()
-        llm = OllamaAdapter(model="llama3.1")
+        llm = OllamaAdapter(model="qwen2.5:7b-instruct")
         notifier = FakeScoringNotifierAdapter()
         self.agent_client = InProcessAgentClient(
             StartAgentSessionUseCase(agent_repo, agent_registry),
@@ -97,7 +105,7 @@ class ApplicationContainer:
         self.start_session_uc = StartSessionUseCase(
             self.session_client, self.asr_client, self.tts_client, self.agent_client
         )
-        self.receive_chunk_uc = ReceiveAudioChunkUseCase(self.asr_client, SilenceThresholdTurnDetector())
+        self.receive_chunk_uc = ReceiveAudioChunkUseCase(self.asr_client, SherpaTurnDetectorAdapter(self.asr_client))
         self.request_voice_uc = RequestVoiceResponseUseCase(self.tts_client)
         self.handle_transcription_uc = HandleTranscriptionResultUseCase(
             self.agent_client, self.request_voice_uc

@@ -15,7 +15,7 @@ from shared.domain import AudioChunk
 from asr.application.use_cases.start_session import StartASRSessionUseCase
 from asr.application.use_cases.process_audio_chunk import ProcessAudioChunkUseCase
 from asr.application.use_cases.finalize_turn import FinalizeTurnUseCase
-from asr.infrastructure.adapters.whisper_speech_recognizer import WhisperSpeechRecognizer
+from asr.infrastructure.adapters.sherpa_speech_recognizer import SherpaSpeechRecognizer
 from asr.infrastructure.adapters.session_registry import ASRSessionRegistry
 
 
@@ -30,12 +30,13 @@ def lire_wav_en_chunks(chemin: str, taille_chunk_octets: int = 3200):
 
 
 async def main(chemin_wav: str) -> None:
-    recognizer = WhisperSpeechRecognizer(
-        model_size_partiel="tiny",
-        model_size_final="base",
-        device="cpu",  # Changed to cpu as fallback for ease of local testing
-        compute_type="int8",
-        fenetre_max_secondes=5.0,
+    recognizer = SherpaSpeechRecognizer(
+        tokens="models/sherpa/sherpa-onnx-streaming-zipformer-fr-2023-04-14/tokens.txt",
+        encoder="models/sherpa/sherpa-onnx-streaming-zipformer-fr-2023-04-14/encoder-epoch-29-avg-9-with-averaged-model.int8.onnx",
+        decoder="models/sherpa/sherpa-onnx-streaming-zipformer-fr-2023-04-14/decoder-epoch-29-avg-9-with-averaged-model.onnx",
+        joiner="models/sherpa/sherpa-onnx-streaming-zipformer-fr-2023-04-14/joiner-epoch-29-avg-9-with-averaged-model.int8.onnx",
+        num_threads=2,
+        provider="cpu",
     )
     repo = ASRSessionRegistry()
     start = StartASRSessionUseCase(repo)
