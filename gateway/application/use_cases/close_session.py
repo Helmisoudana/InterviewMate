@@ -1,9 +1,10 @@
 from typing import Optional
 from gateway.domain.entities.entities import GatewaySession
-from gateway.domain.ports.asr_client_port import ASRClientPort
-from gateway.domain.ports.tts_client_port import TTSClientPort
 from gateway.domain.ports.agent_client_port import AgentClientPort
+from gateway.domain.ports.asr_client_port import ASRClientPort
+from gateway.domain.ports.scoring_client_port import ScoringClientPort
 from gateway.domain.ports.storage_client_port import StorageClientPort
+from gateway.domain.ports.tts_client_port import TTSClientPort
 
 
 class CloseSessionUseCase:
@@ -13,7 +14,7 @@ class CloseSessionUseCase:
         tts_client: TTSClientPort,
         agent_client: AgentClientPort,
         storage_client: Optional[StorageClientPort] = None,
-        scoring_client: Optional[object] = None,
+        scoring_client: Optional[ScoringClientPort] = None,
     ) -> None:
         self._asr_client = asr_client
         self._tts_client = tts_client
@@ -26,8 +27,6 @@ class CloseSessionUseCase:
         await self._tts_client.terminer_session(session.session_id)
         await self._agent_client.terminer_session(session.session_id)
 
-        # Passage du statut de l'entretien à TERMINE, via le client storage
-        # (meme pattern que asr_client/tts_client/agent_client, plus de storage_repository direct)
         if self._storage_client:
             await self._storage_client.terminer_session(session.session_id)
 

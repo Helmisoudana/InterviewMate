@@ -4,7 +4,10 @@ load_dotenv()
 import asyncio
 import logging
 import websockets
-
+# --- Module Scoring ---
+from scoring.infrastructure.adapters.groq_scoring_adapter import GroqScoringAdapter
+from scoring.application.use_cases.generer_rapport_session import GenererRapportSessionUseCase
+from gateway.infrastructure.adapters.in_process_scoring_client import InProcessScoringClient
 # --- Module Storage ---
 from storage.infrastructure.adapters.postgres_storage_repository import PostgresStorageRepository
 from storage.application.use_cases.save_latest_exchange import SaveLatestExchangeUseCase
@@ -94,7 +97,7 @@ class ApplicationContainer:
         )
 
         agent_registry = AgentSessionRegistry()
-        llm = OllamaAdapter(model="qwen2.5:7b-instruct")
+        llm = OllamaAdapter(model="llama3:latest")
         self.agent_client = InProcessAgentClient(
             StartAgentSessionUseCase(llm, agent_registry),
             ConduireEntretienUseCase(llm, agent_registry),
@@ -118,7 +121,13 @@ class ApplicationContainer:
             EndStorageSessionUseCase(self.storage_repo),
         )
         self.storage_client = storage_client
-        
+        # --- Instanciation Scoring ---
+        scoring_llm = GroqScoringAdapter()
+        generer_rapport_uc = GenererRapportSessionUseCase(
+            storage_repo=self.storage_repo,
+            llm_adapter=scoring_llm
+        )
+        self.scoring_client = InProcessScoringClient(generer_rapport_uc)
 
         # --- Assemblage des cas d'usage Gateway ---
         self.start_session_uc = StartSessionUseCase(
@@ -137,6 +146,7 @@ class ApplicationContainer:
             self.tts_client,
             self.agent_client,
             storage_client=storage_client,
+            scoring_client=self.scoring_client,
         )
 
     async def close(self) -> None:
