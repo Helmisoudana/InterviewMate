@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { MediaDeviceService } from '../../core/media/media-devices';
 import { AudioStreamService } from '../../core/media/audio-stream';
+import { InterviewConfig } from '../../core/gateway/gateway.types';
 
 @Component({
   selector: 'app-pre-call',
@@ -23,7 +24,17 @@ export class PreCallComponent implements OnInit, OnDestroy {
   audioLevel = signal(0);
   private animId?: number;
 
+  private routerState: { sessionId?: string; config?: InterviewConfig } = {};
+
   async ngOnInit(): Promise<void> {
+    this.routerState = history.state as { sessionId?: string; config?: InterviewConfig };
+
+    if (!this.routerState?.sessionId || !this.routerState?.config) {
+      console.error('[PreCallComponent] session_id/config manquants — retour à la configuration.');
+      this.router.navigate(['/setup']);
+      return;
+    }
+
     try {
       const stream = await this.mediaDevice.getMediaStream();
       if (this.videoElement?.nativeElement) {
@@ -54,10 +65,8 @@ export class PreCallComponent implements OnInit, OnDestroy {
     this.mediaDevice.toggleAudioTrack(!this.isMuted());
   }
 
-  // --- LIAISON AVEC L'INTERVIEW ROOM ---
   joinInterview(): void {
-    // Redirige vers la salle d'entretien
-    this.router.navigate(['/interview']);
+    this.router.navigate(['/interview'], { state: this.routerState });
   }
 
   ngOnDestroy(): void {

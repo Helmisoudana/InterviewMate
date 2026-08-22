@@ -24,7 +24,7 @@
   min-height: 0;
 }
 .main-video-tile {
-  position: relative; 
+  position: relative;
   flex: 1;
   height: 100%;
   background: #1e293b; /* Fond gris foncé */
@@ -76,4 +76,73 @@
   align-items: center;
   justify-content: center;
   padding-bottom: 12px;
+}
+
+// ============================================================================
+// Écran d'attente (avant que l'agent commence réellement à parler)
+// ============================================================================
+
+.waiting-room {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  height: 100vh;
+  width: 100vw;
+  background: #0b0f19;
+  color: #e2e8f0;
+}
+
+.waiting-room__spinner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid #334155;
+  border-top-color: #60a5fa;
+  animation: waiting-room-spin 0.9s linear infinite;
+}
+
+.waiting-room__label {
+  font-size: 15px;
+  color: #94a3b8;
+  letter-spacing: 0.01em;
+}
+
+.waiting-room--error {
+  gap: 12px;
+}
+
+.waiting-room__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.waiting-room__subtitle {
+  font-size: 14px;
+  color: #94a3b8;
+  max-width: 420px;
+  text-align: center;
+}
+
+.waiting-room__retry {
+  margin-top: 8px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #e2e8f0;
+  cursor: pointer;
+  font-size: 14px;
+
+  &:hover {
+    background: #334155;
+  }
+}
+
+@keyframes waiting-room-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

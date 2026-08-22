@@ -1,1 +1,92 @@
-<p>interview-setup works!</p>
+<div class="setup-container">
+  <div class="setup-card">
+    
+    <div class="header">
+      <div class="badge">InterviewMate AI</div>
+      <h1>Configuration de l'Entretien</h1>
+      <p>Personnalisez les paramètres avant de démarrer votre simulation avec l'agent IA.</p>
+    </div>
+
+    <form (ngSubmit)="startInterview()" #setupForm="ngForm">
+      
+      <!-- Intitulé du Poste -->
+      <div class="form-group">
+        <label for="poste">Poste ou Métier ciblé <span class="required">*</span></label>
+        <input
+          type="text"
+          id="poste"
+          name="poste"
+          [ngModel]="poste()"
+          (ngModelChange)="poste.set($event)"
+          placeholder="ex: Développeur Fullstack Angular & Python..."
+          required
+        />
+      </div>
+
+      <!-- Langue -->
+      <div class="form-group">
+        <label for="langue">Langue de l'entretien</label>
+        <select
+          id="langue"
+          name="langue"
+          [ngModel]="langue()"
+          (ngModelChange)="langue.set($event)"
+        >
+          @for (item of languesDisponibles; track item.code) {
+            <option [value]="item.code">{{ item.label }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- Durée -->
+      <div class="form-group">
+        <label>Durée estimée</label>
+        <div class="options-grid">
+          @for (option of dureeOptions; track option.value) {
+            <button
+              type="button"
+              class="option-btn"
+              [class.active]="duree() === option.value"
+              (click)="selectDuree(option.value)"
+            >
+              {{ option.label }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Difficulté -->
+      <div class="form-group">
+        <label>Niveau de difficulté</label>
+        <div class="options-grid">
+          @for (option of difficulteOptions; track option.value) {
+            <button
+              type="button"
+              class="option-btn"
+              [class.active]="difficulte() === option.value"
+              (click)="selectDifficulte(option.value)"
+            >
+              {{ option.label }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Action -->
+      <button
+        type="submit"
+        class="submit-btn"
+        [disabled]="!setupForm.valid || isSubmitting()"
+      >
+        @if (isSubmitting()) {
+          <span class="spinner"></span>
+          Initialisation en cours...
+        } @else {
+          Démarrer l'entretien
+        }
+      </button>
+
+    </form>
+
+  </div>
+</div>

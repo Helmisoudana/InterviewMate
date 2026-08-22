@@ -1,5 +1,8 @@
-import { Injectable, signal, computed, OnDestroy } from '@angular/core';
+import { Injectable, signal, computed, OnDestroy, inject } from '@angular/core';
 import { InterviewRoomState, InterviewPhase, TranscriptMessage } from './interview-room.models';
+import { GatewaySocket } from '../../core/gateway/gateway-socket';
+import { MediaDeviceService } from '../../core/media/media-devices';
+import { InterviewConfig } from '../../core/gateway/gateway.types';
 
 const INITIAL_STATE: InterviewRoomState = {
   phase: 'intro',
@@ -12,8 +15,15 @@ const INITIAL_STATE: InterviewRoomState = {
   transcript: [],
 };
 
+const ASR_TARGET_SAMPLE_RATE = 16000;
+
+export type RoomStatus = 'connecting' | 'preparing' | 'live' | 'error';
+
 @Injectable()
 export class InterviewRoomStore implements OnDestroy {
+  private readonly gateway = inject(GatewaySocket);
+  private readonly mediaDevice = inject(MediaDeviceService);
+
   private readonly _state = signal<InterviewRoomState>(INITIAL_STATE);
 
   readonly phase = computed(() => this._state().phase);
@@ -24,6 +34,21 @@ export class InterviewRoomStore implements OnDestroy {
   readonly agentSpeaking = computed(() => this._state().agentSpeaking);
   readonly candidateSpeaking = computed(() => this._state().candidateSpeaking);
   readonly transcript = computed(() => this._state().transcript);
+  readonly connectionStatus = this.gateway.status;
+
+  readonly roomStatus = signal<RoomStatus>('connecting');
+  readonly errorMessage = signal<string | null>(null);
+
+  readonly loadingLabel = computed(() => {
+    switch (this.roomStatus()) {
+      case 'connecting':
+        return 'Connexion en cours…';
+      case 'preparing':
+        return 'Votre coach IA prépare la première question…';
+      default:
+        return 'Chargement…';
+    }
+  });
 
   readonly formattedDuration = computed(() => {
     const totalSeconds = this.callDurationSeconds();
@@ -33,7 +58,13 @@ export class InterviewRoomStore implements OnDestroy {
   });
 
   private timerInterval: any = null;
-  private simulationTimeout: any = null;
+
+  private audioContext: AudioContext | null = null;
+  private micProcessor: ScriptProcessorNode | null = null;
+  private micSource: MediaStreamAudioSourceNode | null = null;
+
+  private playbackContext: AudioContext | null = null;
+  private playbackQueueTime = 0;
 
   toggleMute(): void {
     this._state.update((s) => ({ ...s, isMuted: !s.isMuted }));
@@ -43,24 +74,56 @@ export class InterviewRoomStore implements OnDestroy {
     this._state.update((s) => ({ ...s, isVideoOn: !s.isVideoOn }));
   }
 
-  startSession(): void {
+  async startSession(sessionId: string, config: InterviewConfig): Promise<void> {
     if (this._state().isCallConnected) return;
 
+    this.roomStatus.set('connecting');
+    this.errorMessage.set(null);
+
+    this.gateway.connect(sessionId, config, false, {
+      onSessionReady: () => this.handleSessionReady(),
+      onAgentMessage: (text) => this.handleAgentMessage(text),
+      onTranscription: (text) => this.handleTranscription(text),
+      onAudioChunk: (chunk) => this.enqueueAudioPlayback(chunk),
+      onClose: (code, reason) => this.handleClose(code, reason),
+      onError: (e) => console.error('[InterviewRoomStore] erreur WebSocket', e),
+    });
+  }
+
+  private handleSessionReady(): void {
     this._state.update((s) => ({ ...s, isCallConnected: true }));
+    this.roomStatus.set('preparing');
 
     this.timerInterval = setInterval(() => {
-      this._state.update((s) => ({
-        ...s,
-        callDurationSeconds: s.callDurationSeconds + 1,
-      }));
+      this._state.update((s) => ({ ...s, callDurationSeconds: s.callDurationSeconds + 1 }));
     }, 1000);
 
-    this.runMockSimulation();
+    this.startMicStreaming();
+  }
+
+  private handleAgentMessage(text: string): void {
+    this.setAgentSpeaking(true);
+    this.addMessage('agent', text);
+  }
+
+  private handleTranscription(text: string): void {
+    this.setCandidateSpeaking(false);
+    this.addMessage('candidate', text);
+  }
+
+  private handleClose(code: number, reason: string): void {
+    console.warn(`[InterviewRoomStore] session fermée (${code}) : ${reason}`);
+    if (this.roomStatus() !== 'live') {
+      this.roomStatus.set('error');
+      this.errorMessage.set(reason);
+    }
+    this.endCall();
   }
 
   endCall(): void {
     if (this.timerInterval) clearInterval(this.timerInterval);
-    if (this.simulationTimeout) clearTimeout(this.simulationTimeout);
+    this.stopMicStreaming();
+    this.gateway.close();
 
     this._state.update((s) => ({
       ...s,
@@ -71,68 +134,124 @@ export class InterviewRoomStore implements OnDestroy {
     }));
   }
 
-  private runMockSimulation(): void {
-    const scenarioSequence = [
-      {
-        delay: 1000,
-        action: () => {
-          this.setAgentSpeaking(true);
-          this.addMessage('agent', 'Bonjour ! Je suis ravi de vous rencontrer. Pouvez-vous vous présenter brièvement ?');
-        },
-      },
-      {
-        delay: 4000,
-        action: () => {
-          this.setAgentSpeaking(false);
-          this.setCandidateSpeaking(true);
-          this.addMessage('candidate', 'Bonjour ! Je suis développeur Frontend spécialisé en Angular...');
-        },
-      },
-      {
-        delay: 8000,
-        action: () => {
-          this.setCandidateSpeaking(false);
-          this.setPhase('technical');
-          this.setAgentSpeaking(true);
-          this.addMessage('agent', 'Parfait. Passons à la partie technique : Comment fonctionnent les Signals dans Angular ?');
-        },
-      },
-      {
-        delay: 13000,
-        action: () => {
-          this.setAgentSpeaking(false);
-          this.setCandidateSpeaking(true);
-          this.addMessage('candidate', 'Les Signals apportent une réactivité à granularité fine sans dépendre de Zone.js...');
-        },
-      },
-      {
-        delay: 18000,
-        action: () => {
-          this.setCandidateSpeaking(false);
-          this.setPhase('situational');
-          this.setAgentSpeaking(true);
-          this.addMessage('agent', 'Excellente explication. Une question de mise en situation maintenant...');
-        },
-      },
-    ];
+  private startMicStreaming(): void {
+    const stream = this.mediaDevice.getCurrentStream();
+    if (!stream) {
+      console.error('[InterviewRoomStore] aucun flux micro disponible (passer par /pre-call).');
+      return;
+    }
 
-    let currentStep = 0;
-    const executeNextStep = () => {
-      if (currentStep < scenarioSequence.length && this._state().isCallConnected) {
-        const step = scenarioSequence[currentStep];
-        this.simulationTimeout = setTimeout(() => {
-          step.action();
-          currentStep++;
-          executeNextStep();
-        }, step.delay);
-      }
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    this.audioContext = new AudioCtx();
+
+    this.micSource = this.audioContext.createMediaStreamSource(stream);
+    this.micProcessor = this.audioContext.createScriptProcessor(4096, 1, 1);
+
+    const inputSampleRate = this.audioContext.sampleRate;
+
+    this.micProcessor.onaudioprocess = (event: AudioProcessingEvent) => {
+      if (this._state().isMuted || !this._state().isCallConnected) return;
+
+      const input = event.inputBuffer.getChannelData(0);
+      const pcm16 = this.downsampleAndEncodePCM16(input, inputSampleRate, ASR_TARGET_SAMPLE_RATE);
+      this.gateway.sendAudioChunk(pcm16.buffer as ArrayBuffer);
+
+      const rms = Math.sqrt(input.reduce((sum, v) => sum + v * v, 0) / input.length);
+      this.setCandidateSpeaking(rms > 0.02);
     };
 
-    executeNextStep();
+    this.micSource.connect(this.micProcessor);
+    this.micProcessor.connect(this.audioContext.destination);
   }
 
-  private setPhase(phase: InterviewPhase): void {
-    this._state.update((s) => ({ ...s, phase }));
+  private stopMicStreaming(): void {
+    this.micProcessor?.disconnect();
+    this.micSource?.disconnect();
+    if (this.audioContext && this.audioContext.state !== 'closed') {
+      this.audioContext.close();
+    }
+    this.micProcessor = null;
+    this.micSource = null;
+    this.audioContext = null;
+  }
+
+  private downsampleAndEncodePCM16(
+    input: Float32Array,
+    inputSampleRate: number,
+    targetSampleRate: number,
+  ): Int16Array {
+    if (targetSampleRate === inputSampleRate) {
+      return this.floatTo16BitPCM(input);
+    }
+    const ratio = inputSampleRate / targetSampleRate;
+    const newLength = Math.round(input.length / ratio);
+    const result = new Float32Array(newLength);
+    for (let i = 0; i < newLength; i++) {
+      result[i] = input[Math.floor(i * ratio)];
+    }
+    return this.floatTo16BitPCM(result);
+  }
+
+  private floatTo16BitPCM(input: Float32Array): Int16Array {
+    const output = new Int16Array(input.length);
+    for (let i = 0; i < input.length; i++) {
+      const s = Math.max(-1, Math.min(1, input[i]));
+      output[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+    }
+    return output;
+  }
+
+  // Ajusté à 16000 Hz pour correspondre au flux TTS du backend
+  private readonly TTS_FALLBACK_SAMPLE_RATE = 16000;
+
+  private async enqueueAudioPlayback(chunk: ArrayBuffer): Promise<void> {
+    if (!this.playbackContext) {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      // On utilise le même taux de 16000 Hz que le backend
+      this.playbackContext = new AudioCtx({ sampleRate: 16000 });
+      this.playbackQueueTime = this.playbackContext.currentTime;
+    }
+
+    if (this.playbackContext.state === 'suspended') {
+      await this.playbackContext.resume();
+    }
+
+    let audioBuffer: AudioBuffer;
+    try {
+      audioBuffer = await this.playbackContext.decodeAudioData(chunk.slice(0));
+    } catch {
+      audioBuffer = this.decodeRawPCM16(chunk, this.TTS_FALLBACK_SAMPLE_RATE);
+    }
+
+    const source = this.playbackContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(this.playbackContext.destination);
+
+    const startAt = Math.max(this.playbackContext.currentTime, this.playbackQueueTime);
+    source.start(startAt);
+    this.playbackQueueTime = startAt + audioBuffer.duration;
+
+    if (this.roomStatus() !== 'live') {
+      this.roomStatus.set('live');
+    }
+
+    this.setAgentSpeaking(true);
+    source.onended = () => {
+      if (this.playbackContext && this.playbackContext.currentTime >= this.playbackQueueTime - 0.05) {
+        this.setAgentSpeaking(false);
+      }
+    };
+  }
+
+  private decodeRawPCM16(chunk: ArrayBuffer, sampleRate: number): AudioBuffer {
+    const int16 = new Int16Array(chunk);
+    const float32 = new Float32Array(int16.length);
+    for (let i = 0; i < int16.length; i++) {
+      float32[i] = int16[i] / 32768;
+    }
+    const buffer = this.playbackContext!.createBuffer(1, float32.length, sampleRate);
+    buffer.copyToChannel(float32, 0);
+    return buffer;
   }
 
   private setAgentSpeaking(speaking: boolean): void {
@@ -150,11 +269,7 @@ export class InterviewRoomStore implements OnDestroy {
       text,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
-
-    this._state.update((s) => ({
-      ...s,
-      transcript: [...s.transcript, newMessage],
-    }));
+    this._state.update((s) => ({ ...s, transcript: [...s.transcript, newMessage] }));
   }
 
   ngOnDestroy(): void {
