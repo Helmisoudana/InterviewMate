@@ -65,10 +65,44 @@ logger = logging.getLogger("gateway.server")
 
 
 class ApplicationContainer:
+    """
+    Composition root. Construction en une seule factory asynchrone `creer()` :
+    chaque module (storage, asr, tts, agent, session, gateway) est câblé au même
+    niveau, dans le même bloc — storage n'est pas un cas particulier, juste le
+    seul module dont la construction du repository est async (connexion Postgres).
+    """
 
     def __init__(self) -> None:
+        # Attributs peuplés par la factory asynchrone `creer()`.
+        self.storage_repo = None
         self.save_latest_exchange_uc: SaveLatestExchangeUseCase | None = None
+        self.asr_client = None
+        self.tts_client = None
+        self.agent_client = None
+        self.session_client = None
+        self.gateway_registry = None
+        self.start_session_uc = None
+        self.receive_chunk_uc = None
+        self.request_voice_uc = None
+        self.handle_transcription_uc = None
+        self.signal_disconnection_uc = None
+        self.request_reconnection_uc = None
+        self.close_session_uc = None
 
+    @classmethod
+    async def creer(cls) -> "ApplicationContainer":
+        """Assemble tous les modules et retourne un container prêt à l'emploi."""
+        container = cls()
+
+        # --- Storage : même famille que les autres modules, juste une ligne async ---
+        container.storage_repo = await PostgresStorageRepository.creer_depuis_env()
+        container.save_latest_exchange_uc = SaveLatestExchangeUseCase(repository=container.storage_repo)
+        storage_client = InProcessStorageClient(
+            StartStorageSessionUseCase(container.storage_repo),
+            EndStorageSessionUseCase(container.storage_repo),
+        )
+
+        # --- ASR ---
         asr_repo = ASRSessionRegistry()
         recognizer = SherpaSpeechRecognizer(
             tokens="models/sherpa/sherpa-onnx-streaming-zipformer-fr-2023-04-14/tokens.txt",
@@ -82,7 +116,7 @@ class ApplicationContainer:
             rule2_min_trailing_silence=3.0,
             rule3_min_utterance_length=120.0,
         )
-        self.asr_client = InProcessASRClient(
+        container.asr_client = InProcessASRClient(
             StartASRSessionUseCase(asr_repo),
             ProcessAudioChunkUseCase(recognizer, asr_repo, intervalle_chunks=1),
             FinalizeTurnUseCase(recognizer, asr_repo),
@@ -90,78 +124,59 @@ class ApplicationContainer:
             CheckEndpointUseCase(recognizer),
         )
 
+        # --- TTS ---
         tts_repo = TTSSessionRegistry()
         synthesizer = PiperSpeechSynthesizer(voices_dir=".")
-        self.tts_client = InProcessTTSClient(
+        container.tts_client = InProcessTTSClient(
             StartTTSSessionUseCase(tts_repo),
             SynthesizeTextUseCase(synthesizer, tts_repo),
             EndTTSSessionUseCase(tts_repo),
         )
 
+        # --- Agent (dépend de storage pour son notifier) ---
         agent_repo = FakeSessionRepositoryAdapter()
         agent_registry = AgentSessionRegistry()
         llm = OllamaAdapter(model="llama3:latest", keep_alive="30m")
+        notifier = StorageNotifierAdapter(container.save_latest_exchange_uc)
+        container.agent_client = InProcessAgentClient(
+            StartAgentSessionUseCase(agent_repo, agent_registry),
+            ConduireEntretienUseCase(llm, agent_repo, notifier, agent_registry),
+            EndAgentSessionUseCase(agent_registry),
+        )
 
-        self.agent_repo = agent_repo
-        self.agent_registry = agent_registry
-        self.llm = llm
-
+        # --- Session ---
         session_store = InMemorySessionStore()
-        self.session_client = InProcessSessionClient(
+        container.session_client = InProcessSessionClient(
             CreateSessionUseCase(session_store),
             GetSessionStateUseCase(session_store),
             session_store,
         )
 
-        self.gateway_registry = SessionRegistry()
+        container.gateway_registry = SessionRegistry()
 
-    async def init_storage(self) -> None:
-        """Le module storage gere lui-meme sa connexion Postgres."""
-        self.storage_repo = await PostgresStorageRepository.creer_depuis_env()
-        self.save_latest_exchange_uc = SaveLatestExchangeUseCase(repository=self.storage_repo)
-
-        # Adaptateur reliant le ScoringNotifierPort de l'Agent au Use Case Storage
-        notifier = StorageNotifierAdapter(self.save_latest_exchange_uc)
-
-        # Injection dans ConduireEntretienUseCase
-        self.agent_client = InProcessAgentClient(
-            StartAgentSessionUseCase(self.agent_repo, self.agent_registry),
-            ConduireEntretienUseCase(
-                self.llm,
-                self.agent_repo,
-                notifier,
-                self.agent_registry
-            ),
-            EndAgentSessionUseCase(self.agent_registry),
-        )
-
-        # --- Cycle de vie de session cote Storage (meme pattern que asr/tts/agent) ---
-        storage_client = InProcessStorageClient(
-            StartStorageSessionUseCase(self.storage_repo),
-            EndStorageSessionUseCase(self.storage_repo),
-        )
-
-        # Assemblage des cas d'usage Gateway
-        self.start_session_uc = StartSessionUseCase(
-            self.session_client, self.asr_client, self.tts_client, self.agent_client,
+        # --- Gateway : assemblage final des use cases, tous les clients étant prêts ---
+        container.start_session_uc = StartSessionUseCase(
+            container.session_client, container.asr_client, container.tts_client, container.agent_client,
             storage_client=storage_client,
         )
-        self.receive_chunk_uc = ReceiveAudioChunkUseCase(self.asr_client, SherpaTurnDetectorAdapter(self.asr_client))
-        self.request_voice_uc = RequestVoiceResponseUseCase(self.tts_client)
-        self.handle_transcription_uc = HandleTranscriptionResultUseCase(
-            self.agent_client, self.request_voice_uc
+        container.receive_chunk_uc = ReceiveAudioChunkUseCase(
+            container.asr_client, SherpaTurnDetectorAdapter(container.asr_client)
         )
-        self.signal_disconnection_uc = SignalDisconnectionUseCase(self.session_client)
-        self.request_reconnection_uc = RequestReconnectionUseCase(self.session_client)
-        self.close_session_uc = CloseSessionUseCase(
-            self.asr_client,
-            self.tts_client,
-            self.agent_client,
+        container.request_voice_uc = RequestVoiceResponseUseCase(container.tts_client)
+        container.handle_transcription_uc = HandleTranscriptionResultUseCase(
+            container.agent_client, container.request_voice_uc
+        )
+        container.signal_disconnection_uc = SignalDisconnectionUseCase(container.session_client)
+        container.request_reconnection_uc = RequestReconnectionUseCase(container.session_client)
+        container.close_session_uc = CloseSessionUseCase(
+            container.asr_client, container.tts_client, container.agent_client,
             storage_client=storage_client,
         )
+
+        return container
 
     async def close(self) -> None:
-        if getattr(self, "storage_repo", None):
+        if self.storage_repo:
             await self.storage_repo.fermer()
 
 
@@ -183,9 +198,7 @@ async def handler_factory(container: ApplicationContainer, websocket) -> None:
 
 async def main(host: str = "0.0.0.0", port: int = 8765) -> None:
     logger.info("Chargement des modèles (Sherpa / Piper / Ollama)...")
-    container = ApplicationContainer()
-
-    await container.init_storage()
+    container = await ApplicationContainer.creer()
 
     async def routed_handler(websocket):
         await handler_factory(container, websocket)
