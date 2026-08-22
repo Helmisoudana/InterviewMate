@@ -71,7 +71,7 @@ class ApplicationContainer:
             decoder="models/sherpa/sherpa-onnx-streaming-zipformer-fr-2023-04-14/decoder-epoch-29-avg-9-with-averaged-model.onnx",
             joiner="models/sherpa/sherpa-onnx-streaming-zipformer-fr-2023-04-14/joiner-epoch-29-avg-9-with-averaged-model.int8.onnx",
             num_threads=2,
-            provider="cuda",
+            provider="cpu",
             enable_endpoint_detection=True,
             rule1_min_trailing_silence=4.0,
             rule2_min_trailing_silence=3.0,

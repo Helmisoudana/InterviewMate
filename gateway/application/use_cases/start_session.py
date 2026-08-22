@@ -42,9 +42,9 @@ class StartSessionUseCase:
         session.activer()
 
         if self._storage_client:
-            await self._storage_client.demarrer_session(session.session_id)
+            await self._storage_client.demarrer_session(session.session_id , poste , language , difficulte , duree)
 
-        await self._asr_client.demarrer_session(session.session_id, language)
+        await self._asr_client.demarrer_session(session.session_id , language)
         await self._tts_client.demarrer_session(session.session_id, self._default_voice)
 
         return await self._agent_client.demarrer_session(

@@ -6,6 +6,7 @@ import asyncpg
 from storage.domain.entities.echange import EchangePersiste
 from storage.domain.entities.rapport import RapportScorePersiste
 from storage.domain.ports.storage_repository_port import StorageRepositoryPort
+from datetime import datetime , timezone
 
 logger = logging.getLogger("storage.postgres")
 
@@ -55,10 +56,19 @@ class PostgresStorageRepository(StorageRepositoryPort):
         if self._db_pool:
             await self._db_pool.close()
 
-    async def initialiser_entretien(self, session_id: str) -> None:
+    async def initialiser_entretien(self, session_id: str , poste : str , langue : str , difficulte : str , timestamp) -> None:  
+        if isinstance(timestamp, datetime) and timestamp.tzinfo is not None:
+            timestamp = timestamp.replace(tzinfo=None) 
         pool = await self._pool()
         async with pool.acquire() as connection:
-            await connection.execute(INIT_ENTRETIEN_QUERY, str(session_id))
+            await connection.execute(
+                INIT_ENTRETIEN_QUERY, 
+                 str(session_id) ,
+                 str(poste),
+                 str(langue),
+                 str(difficulte),
+                 timestamp
+                 )
 
     async def sauvegarder_dernier_echange(self, echange: EchangePersiste) -> EchangePersiste:
         pool = await self._pool()

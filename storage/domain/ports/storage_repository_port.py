@@ -6,7 +6,7 @@ from storage.domain.entities.rapport import RapportScorePersiste
 class StorageRepositoryPort(ABC):
 
     @abstractmethod
-    async def initialiser_entretien(self, session_id: str) -> None:
+    async def initialiser_entretien(self, session_id: str , poste : str , langue : str , difficulte : str , timestamp : str) -> None:
         pass
 
     @abstractmethod
