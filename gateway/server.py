@@ -1,10 +1,8 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-import os
 import asyncio
 import logging
-import asyncpg
 import websockets
 
 from shared.domain.value_objects import SessionID
@@ -61,7 +59,6 @@ logger = logging.getLogger("gateway.server")
 class ApplicationContainer:
 
     def __init__(self) -> None:
-        self.db_pool: asyncpg.Pool | None = None
         self.save_latest_exchange_uc: SaveLatestExchangeUseCase | None = None
 
         asr_repo = ASRSessionRegistry()
@@ -111,20 +108,9 @@ class ApplicationContainer:
         self.gateway_registry = SessionRegistry()
 
     async def init_storage(self) -> None:
-        """Initialise le pool BDD PostgreSQL et injecte le Storage Use Case via l'adaptateur."""
-        user = os.getenv("DB_USER", "postgres")
-        password = os.getenv("DB_PASSWORD", "postgres")
-        host = os.getenv("DB_HOST", "localhost")
-        port = os.getenv("DB_PORT", "5432")
-        database = os.getenv("DB_NAME", "interviewmate_db")
-
-        dsn = f"postgresql://{user}:{password}@{host}:{port}/{database}"
-        logger.info("Connexion à PostgreSQL sur %s:%s...", host, port)
-        self.db_pool = await asyncpg.create_pool(dsn=dsn)
-
-        # Création du Repository et Use Case Storage
-        storage_repo = PostgresStorageRepository(db_pool=self.db_pool)
-        self.save_latest_exchange_uc = SaveLatestExchangeUseCase(repository=storage_repo)
+        """Initialise le repository Storage (le module storage gère lui-même sa connexion Postgres)."""
+        self.storage_repo = await PostgresStorageRepository.creer_depuis_env()
+        self.save_latest_exchange_uc = SaveLatestExchangeUseCase(repository=self.storage_repo)
 
         # Adaptateur reliant le ScoringNotifierPort de l'Agent au Use Case Storage
         notifier = StorageNotifierAdapter(self.save_latest_exchange_uc)
@@ -141,6 +127,10 @@ class ApplicationContainer:
             EndAgentSessionUseCase(self.agent_registry),
         )
 
+        # NOTE: module 'scoring' pas encore recree sur le disque -> retire temporairement
+        # du cablage. CloseSessionUseCase accepte scoring_client=None (Optional), donc
+        # rien ne casse : le rapport de fin de session ne sera juste pas genere pour l'instant.
+
         # Assemblage des cas d'usage Gateway
         self.start_session_uc = StartSessionUseCase(
             self.session_client, self.asr_client, self.tts_client, self.agent_client
@@ -153,12 +143,15 @@ class ApplicationContainer:
         self.signal_disconnection_uc = SignalDisconnectionUseCase(self.session_client)
         self.request_reconnection_uc = RequestReconnectionUseCase(self.session_client)
         self.close_session_uc = CloseSessionUseCase(
-            self.asr_client, self.tts_client, self.agent_client, storage_repository=storage_repo
+            self.asr_client,
+            self.tts_client,
+            self.agent_client,
+            storage_repository=self.storage_repo,
         )
 
     async def close(self) -> None:
-        if self.db_pool:
-            await self.db_pool.close()
+        if getattr(self, "storage_repo", None):
+            await self.storage_repo.fermer()
 
 
 async def handler_factory(container: ApplicationContainer, websocket) -> None:

@@ -1,9 +1,12 @@
 import os
-from typing import List
+import logging
+from typing import List, Optional
 import asyncpg
 from storage.domain.entities.echange import EchangePersiste
 from storage.domain.entities.rapport import RapportScorePersiste
 from storage.domain.ports.storage_repository_port import StorageRepositoryPort
+
+logger = logging.getLogger("storage.postgres")
 
 # Pointer vers le sous-dossier queries/
 QUERIES_DIR = os.path.join(os.path.dirname(__file__), "queries")
@@ -24,6 +27,31 @@ SAVE_RAPPORT_QUERY = _charger_requete("save_rapport.sql")
 class PostgresStorageRepository(StorageRepositoryPort):
     def __init__(self, db_pool: asyncpg.Pool):
         self._db_pool = db_pool
+
+    @classmethod
+    async def creer_depuis_env(cls) -> "PostgresStorageRepository":
+        """
+        Factory qui construit le pool Postgres a partir des variables d'environnement
+        (DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD) et retourne le repository pret a l'emploi.
+
+        Toute la logique de connexion (dsn, asyncpg.create_pool) reste dans le module storage :
+        gateway/server.py n'a plus besoin d'importer asyncpg ni de connaitre la DSN.
+        """
+        user = os.getenv("DB_USER", "postgres")
+        password = os.getenv("DB_PASSWORD", "postgres")
+        host = os.getenv("DB_HOST", "localhost")
+        port = os.getenv("DB_PORT", "5432")
+        database = os.getenv("DB_NAME", "interviewmate_db")
+
+        dsn = f"postgresql://{user}:{password}@{host}:{port}/{database}"
+        logger.info("Connexion à PostgreSQL sur %s:%s...", host, port)
+        pool = await asyncpg.create_pool(dsn=dsn)
+        return cls(db_pool=pool)
+
+    async def fermer(self) -> None:
+        """Ferme le pool de connexions. A appeler explicitement au shutdown de l'application."""
+        if self._db_pool:
+            await self._db_pool.close()
 
     async def sauvegarder_dernier_echange(self, echange: EchangePersiste) -> EchangePersiste:
         async with self._db_pool.acquire() as connection:
