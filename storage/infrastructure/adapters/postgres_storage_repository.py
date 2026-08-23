@@ -7,6 +7,8 @@ from storage.domain.entities.echange import EchangePersiste
 from storage.domain.entities.rapport import RapportScorePersiste
 from storage.domain.ports.storage_repository_port import StorageRepositoryPort
 from datetime import datetime , timezone
+from dotenv import load_dotenv
+import json
 
 logger = logging.getLogger("storage.postgres")
 
@@ -24,6 +26,7 @@ SAVE_EXCHANGE_QUERY = _charger_requete("save_exchange.sql")
 UPDATE_STATUS_QUERY = _charger_requete("update_status.sql")
 GET_ECHANGES_QUERY = _charger_requete("get_echanges_by_session.sql")
 SAVE_RAPPORT_QUERY = _charger_requete("save_rapport.sql")
+GET_ENTRETIENS = _charger_requete("get_entretien.sql")
 
 
 class PostgresStorageRepository(StorageRepositoryPort):
@@ -35,6 +38,7 @@ class PostgresStorageRepository(StorageRepositoryPort):
 
     @classmethod
     def creer_depuis_env(cls) -> "PostgresStorageRepository":
+        load_dotenv()
         user = os.getenv("DB_USER", "postgres")
         password = os.getenv("DB_PASSWORD", "postgres")
         host = os.getenv("DB_HOST", "localhost")
@@ -128,3 +132,14 @@ class PostgresStorageRepository(StorageRepositoryPort):
                 rapport.entretien_id = row["entretien_id"]
                 rapport.date_creation = row["date_creation"]
         return rapport
+
+
+    async def recuperer_entretiens(self , K : int ):
+        pool = await self._pool()
+        async with pool.acquire() as connection:
+            rows = await connection.fetch(GET_ENTRETIENS,K)
+            donnees = [dict(row) for row in rows]
+            json_result = json.dumps(donnees, default=str)
+            
+        return json_result
+    
