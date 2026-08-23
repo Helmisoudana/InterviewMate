@@ -1,44 +1,57 @@
-<div class="meet-container">
-  <!-- En-tête -->
-  <header class="meet-header">
-    <app-phase-indicator [currentPhase]="store.phase()" />
-  </header>
+@if (store.roomStatus() === 'live') {
+  <div class="meet-container">
+    <!-- En-tête -->
+    <header class="meet-header">
+      <app-phase-indicator [currentPhase]="store.phase()" />
+    </header>
 
-  <main class="meet-viewport">
-    <div class="main-video-tile" #mainTile>
-      <app-agent-tile [isSpeaking]="store.agentSpeaking()" />
+    <main class="meet-viewport">
+      <div class="main-video-tile" #mainTile>
+        <app-agent-tile [isSpeaking]="store.agentSpeaking()" />
 
-      <div 
-        class="pip-video-tile"
-        [class.drag-active]="isDragging"
-        [style.transform]="pipTransform"
-        (mousedown)="onMouseDown($event)"
-      >
-        <app-video-tile 
-          [isVideoOn]="store.isVideoOn()" 
-          [isMuted]="store.isMuted()"
-          [isSpeaking]="store.candidateSpeaking()"
-        />
+        <div
+          class="pip-video-tile"
+          [class.drag-active]="isDragging"
+          [style.transform]="pipTransform"
+          (mousedown)="onMouseDown($event)"
+        >
+          <app-video-tile
+            [isVideoOn]="store.isVideoOn()"
+            [isMuted]="store.isMuted()"
+            [isSpeaking]="store.candidateSpeaking()"
+          />
+        </div>
       </div>
-    </div>
 
-    @if (showTranscript) {
-      <aside class="meet-sidebar">
-        <app-live-transcript [transcript]="store.transcript()" />
-      </aside>
-    }
-  </main>
+      @if (showTranscript) {
+        <aside class="meet-sidebar">
+          <app-live-transcript [transcript]="store.transcript()" />
+        </aside>
+      }
+    </main>
 
-  <footer class="meet-footer">
-    <app-control-bar 
-      [isMuted]="store.isMuted()"
-      [isVideoOn]="store.isVideoOn()"
-      [duration]="store.formattedDuration()"
-      [showTranscript]="showTranscript"
-      (toggleMute)="store.toggleMute()"
-      (toggleVideo)="store.toggleVideo()"
-      (toggleTranscript)="toggleTranscript()"
-      (endCall)="onEndCall()"
-    />
-  </footer>
-</div>
+    <footer class="meet-footer">
+      <app-control-bar
+        [isMuted]="store.isMuted()"
+        [isVideoOn]="store.isVideoOn()"
+        [duration]="store.formattedDuration()"
+        [showTranscript]="showTranscript"
+        (toggleMute)="store.toggleMute()"
+        (toggleVideo)="store.toggleVideo()"
+        (toggleTranscript)="toggleTranscript()"
+        (endCall)="onEndCall()"
+      />
+    </footer>
+  </div>
+} @else if (store.roomStatus() === 'error') {
+  <div class="waiting-room waiting-room--error">
+    <p class="waiting-room__title">Impossible de démarrer l'entretien</p>
+    <p class="waiting-room__subtitle">{{ store.errorMessage() }}</p>
+    <button class="waiting-room__retry" (click)="backToSetup()">Retour à la configuration</button>
+  </div>
+} @else {
+  <div class="waiting-room">
+    <span class="waiting-room__spinner"></span>
+    <p class="waiting-room__label">{{ store.loadingLabel() }}</p>
+  </div>
+}

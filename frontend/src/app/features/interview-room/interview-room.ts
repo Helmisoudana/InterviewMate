@@ -1,37 +1,29 @@
 import { Component, inject, OnInit, HostListener, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router'; // 1. Import du Router
+import { Router } from '@angular/router';
 import { InterviewRoomStore } from './interview-room.store';
 import { PhaseIndicator } from './components/phase-indicator/phase-indicator';
 import { AgentTile } from './components/agent-tile/agent-tile';
 import { VideoTile } from './components/video-tile/video-tile';
 import { LiveTranscript } from './components/live-transcript/live-transcript';
 import { ControlBar } from './components/control-bar/control-bar';
+import { InterviewConfig } from '../../core/gateway/gateway.types';
 
 @Component({
   selector: 'app-interview-room',
   standalone: true,
   providers: [InterviewRoomStore],
-  imports: [
-    CommonModule,
-    PhaseIndicator,
-    AgentTile,
-    VideoTile,
-    LiveTranscript,
-    ControlBar,
-  ],
+  imports: [CommonModule, PhaseIndicator, AgentTile, VideoTile, LiveTranscript, ControlBar],
   templateUrl: './interview-room.html',
   styleUrl: './interview-room.scss',
 })
 export class InterviewRoomComponent implements OnInit {
   readonly store = inject(InterviewRoomStore);
-  private readonly router = inject(Router); // 2. Injection du Router
+  private readonly router = inject(Router);
 
   @ViewChild('mainTile') mainTileRef!: ElementRef<HTMLDivElement>;
 
   showTranscript = false;
-
-  // Logique Drag & Drop bridé
   isDragging = false;
   pipPosition = { x: 0, y: 0 };
   dragStartPos = { x: 0, y: 0 };
@@ -41,52 +33,49 @@ export class InterviewRoomComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.store.startSession();
+    const state = history.state as { sessionId?: string; config?: InterviewConfig };
+
+    if (!state?.sessionId || !state?.config) {
+      console.error('[InterviewRoomComponent] session_id/config manquants — retour à la configuration.');
+      this.router.navigate(['/setup']);
+      return;
+    }
+
+    this.store.startSession(state.sessionId, state.config);
   }
 
   toggleTranscript(): void {
     this.showTranscript = !this.showTranscript;
   }
 
-  // 3. Gestion de la fin d'appel et redirection
   onEndCall(): void {
     this.store.endCall();
     this.router.navigate(['/interview/end']);
   }
 
-  // --- Gestion du Drag & Drop avec limites (Bounding Box) ---
+  backToSetup(): void {
+    this.router.navigate(['/setup']);
+  }
+
   onMouseDown(event: MouseEvent): void {
     this.isDragging = true;
-    this.dragStartPos = {
-      x: event.clientX - this.pipPosition.x,
-      y: event.clientY - this.pipPosition.y,
-    };
+    this.dragStartPos = { x: event.clientX - this.pipPosition.x, y: event.clientY - this.pipPosition.y };
   }
 
   @HostListener('document:mousemove', ['$event'])
   onMouseMove(event: MouseEvent): void {
     if (!this.isDragging || !this.mainTileRef) return;
-
     const mainRect = this.mainTileRef.nativeElement.getBoundingClientRect();
-    const pipWidth = 220;  // Largeur de la vignette
-    const pipHeight = 135; // Hauteur de la vignette
-    const padding = 16;    // Marge intérieure (padding)
-
-    // Calcul de la nouvelle position théorique
+    const pipWidth = 220;
+    const pipHeight = 135;
+    const padding = 16;
     let newX = event.clientX - this.dragStartPos.x;
     let newY = event.clientY - this.dragStartPos.y;
-
-    // Calcul des limites maximales et minimales de déplacement
     const minX = -(mainRect.width - pipWidth - padding * 2);
     const maxX = 0;
     const minY = -(mainRect.height - pipHeight - padding * 2);
     const maxY = 0;
-
-    // Blocage (Clamping) des coordonnées pour ne pas dépasser
-    this.pipPosition = {
-      x: Math.min(Math.max(newX, minX), maxX),
-      y: Math.min(Math.max(newY, minY), maxY),
-    };
+    this.pipPosition = { x: Math.min(Math.max(newX, minX), maxX), y: Math.min(Math.max(newY, minY), maxY) };
   }
 
   @HostListener('document:mouseup')

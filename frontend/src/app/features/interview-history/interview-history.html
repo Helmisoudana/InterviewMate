@@ -3,7 +3,7 @@
   <aside class="history-sidebar">
     <header class="sidebar-header">
       <h2>Historique</h2>
-      <span class="count-badge">{{ sessions().length }} entretiens</span>
+      <span class="count-badge">{{ sessions().length }} entretien(s)</span>
     </header>
 
     <div class="sessions-list">
@@ -15,13 +15,19 @@
         >
           <div class="card-header">
             <h3>{{ session.title }}</h3>
-            <span class="score-badge">{{ session.score }}/100</span>
+            @if (session.score !== null) {
+              <span class="score-badge">{{ session.score }}/100</span>
+            } @else {
+              <span class="pending-badge">En cours</span>
+            }
           </div>
           <div class="card-meta">
             <span>{{ session.date }}</span>
-            <span>•</span>
-            <span>{{ session.duration }}</span>
           </div>
+        </div>
+      } @empty {
+        <div class="empty-list">
+          <p>Aucun entretien enregistré pour le moment.</p>
         </div>
       }
     </div>
@@ -33,22 +39,38 @@
       <header class="detail-header">
         <div>
           <h1>{{ session.title }}</h1>
-          <p>{{ session.date }} — Durée : {{ session.duration }}</p>
+          <p>{{ session.date }}</p>
         </div>
-        <div class="score-pill">Score : {{ session.score }}/100</div>
+        @if (session.score !== null) {
+          <div class="score-pill">Score : {{ session.score }}/100</div>
+        } @else {
+          <div class="pending-pill">Rapport en cours</div>
+        }
       </header>
 
       <div class="chat-transcript">
-        @for (msg of session.messages; track $index) {
-          <div class="message-row" [class.user]="msg.sender === 'user'">
-            <div class="message-bubble">
-              <span class="sender-label">
-                {{ msg.sender === 'ai' ? 'IA Interviewer' : 'Vous' }}
-              </span>
-              <p>{{ msg.text }}</p>
-              <span class="message-time">{{ msg.time }}</span>
-            </div>
+        @if (isLoadingMessages()) {
+          <div class="loading-state">
+            <p>Chargement des échanges...</p>
           </div>
+        } @else {
+          @for (msg of session.messages; track $index) {
+            <div class="message-row" [class.user]="msg.sender === 'user'">
+              <div class="message-bubble">
+                <span class="sender-label">
+                  {{ msg.sender === 'ai' ? 'IA Interviewer' : 'Vous' }}
+                </span>
+                <p>{{ msg.text }}</p>
+                @if (msg.time) {
+                  <span class="message-time">{{ msg.time }}</span>
+                }
+              </div>
+            </div>
+          } @empty {
+            <div class="empty-state">
+              <p>Aucun message/échange trouvé pour cet entretien.</p>
+            </div>
+          }
         }
       </div>
     } @else {

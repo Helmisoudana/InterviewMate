@@ -1,9 +1,4 @@
-import {
-  Component,
-  OnInit,
-  input,
-  signal,
-} from '@angular/core';
+import { Component, ElementRef, ViewChild, effect, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -13,23 +8,35 @@ import { CommonModule } from '@angular/common';
   templateUrl: './agent-tile.html',
   styleUrl: './agent-tile.scss',
 })
-export class AgentTile implements OnInit {
+export class AgentTile {
+  @ViewChild('idleVideo') idleVideo?: ElementRef<HTMLVideoElement>;
+  @ViewChild('talkingVideo') talkingVideo?: ElementRef<HTMLVideoElement>;
+
   readonly isSpeaking = input<boolean>(false);
-  imageLoaded = signal<boolean>(false);
 
-  // Chemin vers votre fichier WebP
-  readonly avatarSource = 'interview.webp';
+  readonly idleSource = 'idle.mp4';
+  readonly talkingSource = 'talking.mp4';
 
-  constructor() {}
-
-  ngOnInit(): void {}
-
-  onImageLoad(): void {
-    this.imageLoaded.set(true);
+  constructor() {
+    effect(() => {
+      this.isSpeaking();
+      this.keepVideosPlaying();
+    });
   }
 
-  onImageError(event?: Event): void {
-    console.error(`[AgentTile] Impossible de charger l'image : ${this.avatarSource}`, event);
-    this.imageLoaded.set(false);
+  onVideoLoaded(): void {
+    this.keepVideosPlaying();
+  }
+
+  private keepVideosPlaying(): void {
+    const idle = this.idleVideo?.nativeElement;
+    const talking = this.talkingVideo?.nativeElement;
+
+    if (idle && idle.paused) {
+      idle.play().catch(() => {});
+    }
+    if (talking && talking.paused) {
+      talking.play().catch(() => {});
+    }
   }
 }

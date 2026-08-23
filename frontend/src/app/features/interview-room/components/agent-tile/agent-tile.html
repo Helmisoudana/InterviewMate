@@ -1,29 +1,31 @@
 <div class="agent-card" [class.speaking]="isSpeaking()">
-  
-  <!-- Conteneur Image WebP -->
-  <div class="avatar-container" [class.hidden]="!imageLoaded()">
-    <img
-      [src]="avatarSource"
-      alt="Interviewer IA"
-      class="avatar-image"
-      (load)="onImageLoad()"
-      (error)="onImageError($event)"
-    />
+  <div class="video-wrapper">
+    <video
+      #idleVideo
+      [src]="idleSource"
+      autoplay
+      loop
+      [muted]="true"
+      playsinline
+      class="avatar-video"
+      [class.visible]="!isSpeaking()"
+      (canplay)="onVideoLoaded()"
+    ></video>
+
+    <video
+      #talkingVideo
+      [src]="talkingSource"
+      autoplay
+      loop
+      [muted]="true"
+      playsinline
+      class="avatar-video"
+      [class.visible]="isSpeaking()"
+    ></video>
   </div>
 
-  <!-- Placeholder tant que l'image n'est pas chargée -->
-  @if (!imageLoaded()) {
-    <div class="avatar-placeholder">
-      <div class="loading-spinner"></div>
-      <p>Chargement de l'interviewer...</p>
-    </div>
-  }
-
-  <!-- Informations superposées en bas -->
   <div class="agent-overlay">
+    <span class="status-dot" [class.active]="isSpeaking()"></span>
     <span class="agent-name">Sarah — Recruteuse IA</span>
-    @if (isSpeaking()) {
-      <span class="speaking-badge">En train de parler...</span>
-    }
   </div>
 </div>

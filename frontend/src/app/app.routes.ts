@@ -46,12 +46,23 @@ export const routes: Routes = [
     ],
   },
 
+  // 4. Configuration de l'entretien (Poste, Durée, Difficulté, Langue)
+  {
+    path: 'setup',
+    loadComponent: () =>
+      import('./features/interview-setup/interview-setup').then(
+        (m) => m.InterviewSetupComponent
+      ),
+    title: "InterviewMate — Configuration de l'entretien",
+  },
+
   {
     path: 'pre-call',
     loadComponent: () =>
       import('./features/pre-call/pre-call').then((m) => m.PreCallComponent),
     title: 'InterviewMate — Vérification du matériel',
   },
+
   {
     path: 'interview',
     loadComponent: () =>
@@ -62,7 +73,6 @@ export const routes: Routes = [
     title: "InterviewMate — Salle d'entretien",
   },
 
-  // 5. Fin d'entretien
   {
     path: 'interview/end',
     loadComponent: () =>
@@ -72,6 +82,5 @@ export const routes: Routes = [
     title: 'InterviewMate — Entretien terminé',
   },
 
-  // Redirection par défaut vers la page de connexion
   { path: '**', redirectTo: '' },
 ];
