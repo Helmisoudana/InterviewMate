@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, HostListener, ViewChild, ElementRef } from '@angular/core';
+import { Component, inject, OnInit, HostListener, ViewChild, ElementRef, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { InterviewRoomStore } from './interview-room.store';
@@ -28,6 +28,10 @@ export class InterviewRoomComponent implements OnInit {
   pipPosition = { x: 0, y: 0 };
   dragStartPos = { x: 0, y: 0 };
 
+  // État de génération du rapport
+  isGeneratingReport = signal(false);
+  private sessionId = '';
+
   get pipTransform(): string {
     return `translate3d(${this.pipPosition.x}px, ${this.pipPosition.y}px, 0px)`;
   }
@@ -41,6 +45,7 @@ export class InterviewRoomComponent implements OnInit {
       return;
     }
 
+    this.sessionId = state.sessionId;
     this.store.startSession(state.sessionId, state.config);
   }
 
@@ -48,9 +53,31 @@ export class InterviewRoomComponent implements OnInit {
     this.showTranscript = !this.showTranscript;
   }
 
-  onEndCall(): void {
+  async onEndCall(): Promise<void> {
+    // 1. Déconnexion WebRTC / Clôture de l'appel
     this.store.endCall();
-    this.router.navigate(['/interview/end']);
+    
+    // 2. Affichage de la page de chargement (style waiting-room)
+    this.isGeneratingReport.set(true);
+
+    try {
+      // 3. Appel de l'API backend pour générer le rapport
+      const response = await fetch(`http://127.0.0.1:8000/scoring/${this.sessionId}`);
+      
+      if (!response.ok) {
+        throw new Error(`Erreur lors de la génération du rapport: ${response.statusText}`);
+      }
+
+      const rapport = await response.json();
+
+      this.router.navigate(['/interview/end'], {
+      state: { sessionId: this.sessionId }
+    });
+
+    } catch (error) {
+      console.error('[InterviewRoomComponent] Échec lors de la génération du rapport:', error);
+      this.isGeneratingReport.set(false);
+    }
   }
 
   backToSetup(): void {

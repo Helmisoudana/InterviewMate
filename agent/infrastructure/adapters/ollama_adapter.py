@@ -6,7 +6,7 @@ from agent.domain.value_objects.message import Message
 
 logger = logging.getLogger("latence")
 
-NUM_PREDICT_DEFAUT = 120
+NUM_PREDICT_DEFAUT = 500
 KEEP_ALIVE_DEFAUT = "30m"
 
 

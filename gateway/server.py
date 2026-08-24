@@ -13,7 +13,6 @@ from storage.application.use_cases.end_session import EndStorageSessionUseCase
 from storage.application.use_cases.get_session_transcript import GetSessionTranscriptUseCase
 from storage.application.use_cases.get_report import GetReportUseCase
 from storage.application.use_cases.save_final_report import SaveFinalReportUseCase
-from gateway.infrastructure.adapters.in_process_scoring_client import InProcessScoringClient
 from scoring.infrastructure.adapters.groq_scorer_adapter import GroqScorerAdapter
 from scoring.application.use_cases.generer_rapport_session import GenererRapportSessionUseCase
 from gateway.infrastructure.adapters.in_process_storage_client import InProcessStorageClient
@@ -105,7 +104,7 @@ class ApplicationContainer:
 
         # --- Module Agent : notifier cable pour que chaque echange soit sauvegarde en storage ---
         agent_registry = AgentSessionRegistry()
-        llm = OllamaAdapter(model="llama3:latest")
+        llm = OllamaAdapter(model="llama3.2:3b-instruct-q4_0")
         notifier = StorageNotifierAdapter(self.save_latest_exchange_uc)
         self.agent_client = InProcessAgentClient(
             StartAgentSessionUseCase(llm, agent_registry),
@@ -128,18 +127,6 @@ class ApplicationContainer:
         )
         self.storage_client = storage_client
 
-        # --- Câblage du module Scoring ---
-        llm_scorer = GroqScorerAdapter()
-        generer_rapport_uc = GenererRapportSessionUseCase(
-            llm_scorer=llm_scorer,
-            get_transcript_uc=GetSessionTranscriptUseCase(self.storage_repo),
-            get_report_uc=GetReportUseCase(self.storage_repo),
-            save_report_uc=SaveFinalReportUseCase(self.storage_repo),
-        )
-        scoring_client = InProcessScoringClient(generer_rapport_uc)
-        self.scoring_client = scoring_client
-
-        # --- Assemblage des cas d'usage Gateway ---
         self.start_session_uc = StartSessionUseCase(
             self.session_client, self.asr_client, self.tts_client, self.agent_client,
             storage_client=storage_client,
@@ -156,7 +143,6 @@ class ApplicationContainer:
             self.tts_client,
             self.agent_client,
             storage_client=storage_client,
-            scoring_client=scoring_client,
         )
 
     async def close(self) -> None:

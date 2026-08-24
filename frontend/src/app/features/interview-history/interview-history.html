@@ -15,11 +15,9 @@
         >
           <div class="card-header">
             <h3>{{ session.title }}</h3>
-            @if (session.score !== null) {
-              <span class="score-badge">{{ session.score }}/100</span>
-            } @else {
-              <span class="pending-badge">En cours</span>
-            }
+            @if (session.score !== "null") {
+              <span class="score-badge">{{ session.score }}</span>
+            } 
           </div>
           <div class="card-meta">
             <span>{{ session.date }}</span>
@@ -41,10 +39,11 @@
           <h1>{{ session.title }}</h1>
           <p>{{ session.date }}</p>
         </div>
-        @if (session.score !== null) {
-          <div class="score-pill">Score : {{ session.score }}/100</div>
+        @if (session.score == "EN_COURS") {
+           <div class="score-pill">En cours</div>
+          
         } @else {
-          <div class="pending-pill">Rapport en cours</div>
+         <div class="score-pill">Score : {{ session.score }}</div>
         }
       </header>
 

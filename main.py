@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from storage.api.api import router
 from fastapi.middleware.cors import CORSMiddleware
 from scoring.api.scoring_router import router as scoring_router
-app = FastAPI(title="InterviewMate API")
+app = FastAPI(title="InterviewMate API",debug=True)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:4200"],

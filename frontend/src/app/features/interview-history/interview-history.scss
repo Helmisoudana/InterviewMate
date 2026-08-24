@@ -1,13 +1,12 @@
 .history-container {
   display: flex;
-  height: calc(100vh - 64px); /* S'adapte sous la navbar de l'AppShell */
+  height: calc(100vh - 64px); 
   width: 100%;
   background-color: var(--color-bg, #ffffff);
   color: var(--color-text, #133458);
   box-sizing: border-box;
 }
 
-/* --- Panneau Gauche (Sidebar) --- */
 .history-sidebar {
   width: 340px;
   border-right: 1px solid var(--color-border, #e2e8f0);
@@ -99,7 +98,6 @@
   }
 }
 
-/* --- Panneau Droit (Discussion) --- */
 .history-detail {
   flex: 1;
   display: flex;

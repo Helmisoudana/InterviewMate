@@ -13,7 +13,7 @@ export interface HistoryPreviewItem {
   id: string;
   role: string;
   date: string;
-  score: number | null; // null = rapport en cours ou indisponible
+  score: string
 }
 
 @Component({
@@ -26,7 +26,6 @@ export interface HistoryPreviewItem {
 export class HomeComponent implements OnInit {
   private readonly sessionApi = inject(SessionApi);
 
-  // Signal pour l'affichage réactif des derniers entretiens
   readonly recentInterviews = signal<HistoryPreviewItem[]>([]);
 
   ngOnInit(): void {
@@ -40,7 +39,7 @@ export class HomeComponent implements OnInit {
           id: item.session_id || item.id,
           role: item.poste || 'Poste non spécifié',
           date: this.formaterDate(item.timestamp),
-          score: item.statut === 'EN_COURS' ? null : 80, 
+          score: item.statut , 
         }));
 
         this.recentInterviews.set(entretiensFormates);

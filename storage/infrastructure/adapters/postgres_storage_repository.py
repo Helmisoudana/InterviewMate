@@ -94,7 +94,7 @@ class PostgresStorageRepository(StorageRepositoryPort):
     async def mettre_a_jour_statut(self, session_id: str, statut: str) -> None:
         pool = await self._pool()
         async with pool.acquire() as connection:
-            await connection.execute(UPDATE_STATUS_QUERY, str(session_id), statut)
+            await connection.execute(UPDATE_STATUS_QUERY, str(session_id), str(statut))
 
     async def recuperer_echanges_par_session(self, session_id: str) -> List[EchangePersiste]:
         pool = await self._pool()

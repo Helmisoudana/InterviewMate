@@ -14,21 +14,15 @@ class GenererRapportSessionUseCase:
         self,
         llm_scorer: LLMScorerPort,
         get_transcript_uc: GetSessionTranscriptUseCase,
-        get_report_uc: GetReportUseCase,
         save_report_uc: SaveFinalReportUseCase,
         update_status_uc : UpdateStatusUseCase
     ):
         self._llm_scorer = llm_scorer
         self._get_transcript_uc = get_transcript_uc
-        self._get_report_uc = get_report_uc
         self._save_report_uc = save_report_uc
         self._update_status_uc = update_status_uc
 
     async def executer(self, session_id: str) -> RapportScore:
-        rapport_existant = await self._get_report_uc.executer(session_id)
-        if rapport_existant is not None:
-            return self._vers_domaine(rapport_existant)
-
         echanges_persistes = await self._get_transcript_uc.executer(session_id)
         if not echanges_persistes:
             raise ValueError(f"Aucun echange trouve pour la session {session_id}, impossible de generer un rapport.")
@@ -56,29 +50,8 @@ class GenererRapportSessionUseCase:
             score_communication=rapport.score_communication,
         )
         await self._save_report_uc.executer(rapport_a_persister)
-        await self._update_status_uc.executer(session_id  , rapport.score_global)
+        statut_score = f"{int(rapport.score_global)}/10"
+        await self._update_status_uc.executer(session_id  , statut_score)
         return rapport
 
-    @staticmethod
-    def _vers_domaine(rapport_persiste: RapportScorePersiste) -> RapportScore:
-        evaluations = [
-            EvaluationEchange(
-                ordre=ev.get("ordre", 0),
-                question=ev.get("question", ""),
-                reponse=ev.get("reponse", ""),
-                qualite_percue=ev.get("qualite_percue", ""),
-                score_technique=ev.get("score_technique", 0.0),
-                remarque=ev.get("remarque", ""),
-            )
-            for ev in rapport_persiste.evaluations
-        ]
-        return RapportScore(
-            session_id=rapport_persiste.session_id,
-            score_global=rapport_persiste.score_global,
-            score_technique=rapport_persiste.score_technique,
-            score_communication=rapport_persiste.score_communication,
-            points_forts=rapport_persiste.points_forts,
-            points_faibles=rapport_persiste.points_faibles,
-            recommandations=rapport_persiste.recommandations,
-            evaluations=evaluations,
-        )
+    

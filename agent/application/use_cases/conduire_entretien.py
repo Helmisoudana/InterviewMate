@@ -34,8 +34,10 @@ class ConduireEntretienUseCase:
         ]
         resultat = await appeler_llm_json(self.llm, messages)
 
-        if interview.echanges and self.storage_notifier is not None:
-            await self.storage_notifier.notifier_echange_termine(session_id_str, interview.echanges[-1])
+        if interview.echanges:
+            interview.echanges[-1].qualite = resultat.get("qualite_reponse_precedente")
+            if self.storage_notifier is not None:
+                await self.storage_notifier.notifier_echange_termine(session_id_str, interview.echanges[-1])
 
         interview.difficulte_actuelle = DifficultyLevel(
             resultat.get("difficulte_suivante", interview.difficulte_actuelle.value)
