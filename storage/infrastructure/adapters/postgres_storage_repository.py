@@ -27,7 +27,7 @@ UPDATE_STATUS_QUERY = _charger_requete("update_status.sql")
 GET_ECHANGES_QUERY = _charger_requete("get_echanges_by_session.sql")
 SAVE_RAPPORT_QUERY = _charger_requete("save_rapport.sql")
 GET_ENTRETIENS = _charger_requete("get_entretien.sql")
-
+GET_RAPPORT_QUERY = _charger_requete("get_rapport.sql")
 
 class PostgresStorageRepository(StorageRepositoryPort):
 
@@ -119,19 +119,45 @@ class PostgresStorageRepository(StorageRepositoryPort):
         async with pool.acquire() as connection:
             row = await connection.fetchrow(
                 SAVE_RAPPORT_QUERY,
-                rapport.session_id,
+                str(rapport.session_id),
                 rapport.score_global,
                 rapport.score_technique,
                 rapport.score_communication,
                 rapport.points_forts,
                 rapport.points_faibles,
                 rapport.recommandations,
+                json.dumps(rapport.evaluations, default=str),
             )
             if row:
                 rapport.id = row["id"]
                 rapport.entretien_id = row["entretien_id"]
                 rapport.date_creation = row["date_creation"]
         return rapport
+    async def recuperer_rapport(self, session_id: str) -> Optional[RapportScorePersiste]:
+        """Retourne le rapport existant pour cette session, ou None s'il n'a pas encore ete genere."""
+        pool = await self._pool()
+        async with pool.acquire() as connection:
+            row = await connection.fetchrow(GET_RAPPORT_QUERY, str(session_id))
+        if row is None:
+            return None
+
+        evaluations = row["evaluations"]
+        if isinstance(evaluations, str):
+            evaluations = json.loads(evaluations)
+
+        return RapportScorePersiste(
+            id=row["id"],
+            entretien_id=row["entretien_id"],
+            session_id=str(session_id),
+            score_global=float(row["score_global"]),
+            score_technique=float(row["score_technique"]) if row["score_technique"] is not None else None,
+            score_communication=float(row["score_communication"]) if row["score_communication"] is not None else None,
+            points_forts=list(row["points_forts"] or []),
+            points_faibles=list(row["points_faibles"] or []),
+            recommandations=list(row["recommandations"] or []),
+            evaluations=evaluations or [],
+            date_creation=row["date_creation"],
+        )
 
 
     async def recuperer_entretiens(self , K : int ):

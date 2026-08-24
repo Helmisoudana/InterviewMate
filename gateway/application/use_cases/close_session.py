@@ -33,12 +33,16 @@ class CloseSessionUseCase:
 
         rapport = None
         if self._scoring_client:
-            rapport = await self._scoring_client.cloturer_session(session.session_id)
-            print(
-                f"[RAPPORT FINAL] session={session.session_id} "
-                f"score_global={rapport.score_global:.2f} "
-                f"nb_evaluations={len(rapport.evaluations)}"
-            )
+            try:
+                rapport = await self._scoring_client.cloturer_session(session.session_id)
+                print(
+                    f"[RAPPORT FINAL] session={session.session_id} "
+                    f"score_global={rapport.score_global:.2f} "
+                    f"nb_evaluations={len(rapport.evaluations)}"
+                )
+            except ValueError as e:
+                # Session fermee trop tot (aucun echange enregistre) : pas une erreur serveur
+                print(f"[SCORING IGNORE] session={session.session_id} : {e}")
 
         session.fermer()
         return rapport

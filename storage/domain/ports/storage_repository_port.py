@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 from storage.domain.entities.echange import EchangePersiste
 from storage.domain.entities.rapport import RapportScorePersiste
 
@@ -23,4 +23,7 @@ class StorageRepositoryPort(ABC):
 
     @abstractmethod
     async def sauvegarder_rapport(self, rapport: RapportScorePersiste) -> RapportScorePersiste:
+        pass
+    @abstractmethod
+    async def recuperer_rapport(self, session_id: str) -> Optional[RapportScorePersiste]:
         pass
