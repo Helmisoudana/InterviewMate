@@ -6,7 +6,7 @@ from agent.domain.value_objects.message import Message
 
 logger = logging.getLogger("latence")
 
-NUM_PREDICT_DEFAUT = 500
+NUM_PREDICT_DEFAUT = 1024
 KEEP_ALIVE_DEFAUT = "30m"
 
 
@@ -24,16 +24,18 @@ class OllamaAdapter(LLMPort):
         self.temperature = temperature
         self._client = ollama.AsyncClient()
 
-    async def stream_completion(self, messages: list[Message]):
+    async def stream_completion(self, messages: list[Message], response_schema: dict | None = None):
         payload = [{"role": m.role, "content": m.content} for m in messages]
         t0 = time.monotonic()
         nb_tokens = 0
+
+        format_arg = response_schema if response_schema is not None else "json"
         try:
             async for chunk in await self._client.chat(
                 model=self.model,
                 messages=payload,
                 stream=True,
-                format="json",
+                format=format_arg,
                 keep_alive=self.keep_alive,
                 options={
                     "num_predict": self.num_predict,

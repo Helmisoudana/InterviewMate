@@ -1,6 +1,6 @@
 from agent.domain.entities.echange import Echange
 from agent.domain.services.system_prompt_builder import construire_prompt_systeme
-from agent.domain.services.llm_json_client import appeler_llm_json
+from agent.domain.services.llm_json_client import appeler_llm_json, ReponseLLMInvalide
 from agent.domain.ports.llm_port import LLMPort
 from agent.domain.ports.Storage_notifier_port import StorageNotifierPort
 from agent.domain.value_objects.message import Message
@@ -32,7 +32,11 @@ class ConduireEntretienUseCase:
             Message(role="system", content=prompt_systeme),
             Message(role="user", content=texte_reponse),
         ]
-        resultat = await appeler_llm_json(self.llm, messages)
+        try:
+            resultat = await appeler_llm_json(self.llm, messages)
+        except ReponseLLMInvalide:
+
+            raise
 
         if interview.echanges:
             interview.echanges[-1].qualite = resultat.get("qualite_reponse_precedente")
