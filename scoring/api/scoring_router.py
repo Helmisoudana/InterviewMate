@@ -7,6 +7,7 @@ from storage.infrastructure.adapters.postgres_storage_repository import Postgres
 from storage.application.use_cases.get_session_transcript import GetSessionTranscriptUseCase
 from storage.application.use_cases.get_report import GetReportUseCase
 from storage.application.use_cases.save_final_report import SaveFinalReportUseCase
+from storage.application.use_cases.update_status import UpdateStatusUseCase
 
 from scoring.infrastructure.adapters.groq_scorer_adapter import GroqScorerAdapter
 from scoring.infrastructure.adapters.pdf_rapport_adapter import generer_pdf_rapport
@@ -14,7 +15,6 @@ from scoring.application.use_cases.generer_rapport_session import GenererRapport
 
 router = APIRouter(prefix="/scoring")
 
-# Meme repository que storage/api/api.py (creer_depuis_env est synchrone, pool paresseux au premier appel)
 _storage_repo = PostgresStorageRepository.creer_depuis_env()
 
 _use_case = GenererRapportSessionUseCase(
@@ -22,16 +22,14 @@ _use_case = GenererRapportSessionUseCase(
     get_transcript_uc=GetSessionTranscriptUseCase(_storage_repo),
     get_report_uc=GetReportUseCase(_storage_repo),
     save_report_uc=SaveFinalReportUseCase(_storage_repo),
+    update_status_uc=UpdateStatusUseCase(_storage_repo)
+
 )
 
 
 @router.get("/{session_id}")
 async def obtenir_rapport(session_id: str):
-    """
-    Appele par le bouton 'Rapport' du frontend.
-    Pattern get-or-generate : si le rapport existe deja en base, retour instantane
-    (aucun nouvel appel Groq). Sinon, il est genere a la demande, sauvegarde, puis retourne.
-    """
+    
     try:
         rapport = await _use_case.executer(session_id)
         return {
@@ -55,11 +53,7 @@ async def obtenir_rapport(session_id: str):
 
 @router.get("/{session_id}/pdf")
 async def obtenir_rapport_pdf(session_id: str):
-    """
-    Appele pour telecharger le rapport en PDF.
-    Reutilise le meme use case (pattern get-or-generate identique a la route JSON),
-    puis genere le PDF a partir du RapportScore obtenu.
-    """
+    
     try:
         rapport = await _use_case.executer(session_id)
         chemin = f"{tempfile.gettempdir()}/rapport_{session_id}.pdf"

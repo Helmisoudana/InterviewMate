@@ -21,5 +21,4 @@ class SaveLatestExchangeUseCase:
         )
         return await self._repository.sauvegarder_dernier_echange(echange)
 
-    async def changer_statut_entretien(self, session_id: str, statut: str) -> None:
-        await self._repository.mettre_a_jour_statut(session_id, statut)
+    

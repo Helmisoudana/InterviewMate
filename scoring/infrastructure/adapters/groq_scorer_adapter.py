@@ -49,7 +49,6 @@ Reponds EXCLUSIVEMENT avec un objet JSON valide, sans aucun texte avant ou apres
 
 
 class GroqScorerAdapter(LLMScorerPort):
-    """Un seul appel Groq par session. Modele : openai/gpt-oss-120b (llama-3.3-70b-versatile deprecie)."""
 
     def __init__(self, api_key: str | None = None, model: str = "openai/gpt-oss-120b"):
         cle = api_key or os.getenv("GROQ_API_KEY")

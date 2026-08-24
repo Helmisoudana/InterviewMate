@@ -134,7 +134,6 @@ class PostgresStorageRepository(StorageRepositoryPort):
                 rapport.date_creation = row["date_creation"]
         return rapport
     async def recuperer_rapport(self, session_id: str) -> Optional[RapportScorePersiste]:
-        """Retourne le rapport existant pour cette session, ou None s'il n'a pas encore ete genere."""
         pool = await self._pool()
         async with pool.acquire() as connection:
             row = await connection.fetchrow(GET_RAPPORT_QUERY, str(session_id))

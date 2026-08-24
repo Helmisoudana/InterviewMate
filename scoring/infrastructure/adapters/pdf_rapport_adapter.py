@@ -13,11 +13,11 @@ from reportlab.platypus import (
 )
 
 from scoring.domain.entities.rapport_score import RapportScore
-COULEUR_PRINCIPALE = colors.HexColor("#1F2937")   # gris anthracite (titres)
-COULEUR_ACCENT = colors.HexColor("#2563EB")        # bleu sobre (accents, en-têtes de table)
-COULEUR_TEXTE = colors.HexColor("#374151")         # gris texte courant
-COULEUR_LIGNE = colors.HexColor("#D1D5DB")         # gris clair (séparateurs)
-COULEUR_FOND_ENTETE = colors.HexColor("#F3F4F6")   # fond gris très clair
+COULEUR_PRINCIPALE = colors.HexColor("#1F2937")   
+COULEUR_ACCENT = colors.HexColor("#2563EB")       
+COULEUR_TEXTE = colors.HexColor("#374151")        
+COULEUR_LIGNE = colors.HexColor("#D1D5DB")        
+COULEUR_FOND_ENTETE = colors.HexColor("#F3F4F6")   
 
 def _construire_styles():
     styles = getSampleStyleSheet()
@@ -93,21 +93,10 @@ def _formater_score(valeur) -> str:
 
 
 def generer_pdf_rapport(rapport: RapportScore, chemin_sortie: str, nom_candidat: str = "") -> str:
-    """
-    Construit le PDF du rapport d'entretien.
-
-    Args:
-        rapport: objet RapportScore déjà généré (domaine scoring).
-        chemin_sortie: chemin du fichier .pdf à produire.
-        nom_candidat: optionnel, affiché en sous-titre si fourni.
-
-    Returns:
-        Le chemin du fichier généré.
-    """
+   
     styles = _construire_styles()
     story = []
 
-    # --- En-tête ---
     story.append(Paragraph("Rapport d'entretien", styles["TitrePrincipal"]))
     sous_titre = f"Session : {rapport.session_id}"
     if nom_candidat:
@@ -115,7 +104,6 @@ def generer_pdf_rapport(rapport: RapportScore, chemin_sortie: str, nom_candidat:
     story.append(Paragraph(sous_titre, styles["SousTitre"]))
     story.append(HRFlowable(width="100%", thickness=1, color=COULEUR_LIGNE, spaceAfter=14))
 
-    # --- Synthèse des scores ---
     story.append(Paragraph("Synthèse des scores", styles["TitreSection"]))
 
     donnees_scores = [
@@ -144,25 +132,21 @@ def generer_pdf_rapport(rapport: RapportScore, chemin_sortie: str, nom_candidat:
     ]))
     story.append(table_scores)
 
-    # --- Points forts ---
     if rapport.points_forts:
         story.append(Paragraph("Points forts", styles["TitreSection"]))
         for point in rapport.points_forts:
             story.append(Paragraph(f"&bull;&nbsp;&nbsp;{point}", styles["PuceListe"]))
 
-    # --- Points faibles ---
     if rapport.points_faibles:
         story.append(Paragraph("Points à améliorer", styles["TitreSection"]))
         for point in rapport.points_faibles:
             story.append(Paragraph(f"&bull;&nbsp;&nbsp;{point}", styles["PuceListe"]))
 
-    # --- Recommandations ---
     if rapport.recommandations:
         story.append(Paragraph("Recommandations", styles["TitreSection"]))
         for reco in rapport.recommandations:
             story.append(Paragraph(f"&bull;&nbsp;&nbsp;{reco}", styles["PuceListe"]))
 
-    # --- Détail des échanges ---
     if rapport.evaluations:
         story.append(Paragraph("Détail des échanges", styles["TitreSection"]))
 

@@ -5,17 +5,10 @@ from storage.application.use_cases.get_session_transcript import GetSessionTrans
 from storage.application.use_cases.get_report import GetReportUseCase
 from storage.application.use_cases.save_final_report import SaveFinalReportUseCase
 from storage.domain.entities.rapport import RapportScorePersiste
-
+from storage.application.use_cases.update_status import UpdateStatusUseCase
 
 class GenererRapportSessionUseCase:
-    """
-    Orchestre la generation du rapport final. Pattern get-or-generate :
-    si un rapport existe deja pour cette session, on le retourne tel quel
-    (pas de nouvel appel LLM). Sinon on genere, sauvegarde, puis retourne.
-
-    Ne depend que des use cases exposes par storage (get_session_transcript,
-    get_report, save_final_report) — jamais du repository ou de Postgres directement.
-    """
+   
 
     def __init__(
         self,
@@ -23,11 +16,13 @@ class GenererRapportSessionUseCase:
         get_transcript_uc: GetSessionTranscriptUseCase,
         get_report_uc: GetReportUseCase,
         save_report_uc: SaveFinalReportUseCase,
+        update_status_uc : UpdateStatusUseCase
     ):
         self._llm_scorer = llm_scorer
         self._get_transcript_uc = get_transcript_uc
         self._get_report_uc = get_report_uc
         self._save_report_uc = save_report_uc
+        self._update_status_uc = update_status_uc
 
     async def executer(self, session_id: str) -> RapportScore:
         rapport_existant = await self._get_report_uc.executer(session_id)
@@ -61,12 +56,11 @@ class GenererRapportSessionUseCase:
             score_communication=rapport.score_communication,
         )
         await self._save_report_uc.executer(rapport_a_persister)
-
+        await self._update_status_uc.executer(session_id  , rapport.score_global)
         return rapport
 
     @staticmethod
     def _vers_domaine(rapport_persiste: RapportScorePersiste) -> RapportScore:
-        """Reconstruit l'objet RapportScore (domaine scoring) a partir de RapportScorePersiste (domaine storage)."""
         evaluations = [
             EvaluationEchange(
                 ordre=ev.get("ordre", 0),
