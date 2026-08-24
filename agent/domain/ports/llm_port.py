@@ -5,5 +5,9 @@ from agent.domain.value_objects.message import Message
 
 class LLMPort(ABC):
     @abstractmethod
-    async def stream_completion(self, messages: list[Message]) -> AsyncIterator[str]:
+    async def stream_completion(
+        self,
+        messages: list[Message],
+        response_schema: dict | None = None,
+    ) -> AsyncIterator[str]:
         ...
