@@ -10,6 +10,11 @@ from storage.infrastructure.adapters.postgres_storage_repository import Postgres
 from storage.application.use_cases.save_latest_exchange import SaveLatestExchangeUseCase
 from storage.application.use_cases.start_session import StartStorageSessionUseCase
 from storage.application.use_cases.end_session import EndStorageSessionUseCase
+from storage.application.use_cases.get_session_transcript import GetSessionTranscriptUseCase
+from storage.application.use_cases.get_report import GetReportUseCase
+from storage.application.use_cases.save_final_report import SaveFinalReportUseCase
+from scoring.infrastructure.adapters.groq_scorer_adapter import GroqScorerAdapter
+from scoring.application.use_cases.generer_rapport_session import GenererRapportSessionUseCase
 from gateway.infrastructure.adapters.in_process_storage_client import InProcessStorageClient
 
 # --- Module ASR ---
@@ -93,11 +98,17 @@ class ApplicationContainer:
             EndTTSSessionUseCase(tts_repo),
         )
 
+        # --- Module Storage : cree en premier, car agent (notifier) et scoring en dependent ---
+        self.storage_repo = PostgresStorageRepository.creer_depuis_env()
+        self.save_latest_exchange_uc = SaveLatestExchangeUseCase(repository=self.storage_repo)
+
+        # --- Module Agent : notifier cable pour que chaque echange soit sauvegarde en storage ---
         agent_registry = AgentSessionRegistry()
-        llm = OllamaAdapter(model="qwen2.5:7b-instruct")
+        llm = OllamaAdapter(model="llama3.2:3b-instruct-q4_0")
+        notifier = StorageNotifierAdapter(self.save_latest_exchange_uc)
         self.agent_client = InProcessAgentClient(
             StartAgentSessionUseCase(llm, agent_registry),
-            ConduireEntretienUseCase(llm, agent_registry),
+            ConduireEntretienUseCase(llm, agent_registry, notifier),
             EndAgentSessionUseCase(agent_registry),
         )
 
@@ -110,17 +121,12 @@ class ApplicationContainer:
 
         self.gateway_registry = SessionRegistry()
 
-        self.storage_repo = PostgresStorageRepository.creer_depuis_env()
-        self.save_latest_exchange_uc = SaveLatestExchangeUseCase(repository=self.storage_repo)
-
         storage_client = InProcessStorageClient(
             StartStorageSessionUseCase(self.storage_repo),
             EndStorageSessionUseCase(self.storage_repo),
         )
         self.storage_client = storage_client
-        
 
-        # --- Assemblage des cas d'usage Gateway ---
         self.start_session_uc = StartSessionUseCase(
             self.session_client, self.asr_client, self.tts_client, self.agent_client,
             storage_client=storage_client,

@@ -6,6 +6,7 @@ export interface EntretienBackend {
   poste: string;
   langue: string;
   difficulte: string;
+  
 }
 
 export interface EchangeBackend {

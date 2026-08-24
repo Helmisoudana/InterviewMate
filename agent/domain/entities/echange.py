@@ -8,3 +8,4 @@ class Echange:
     question: str
     phase: InterviewPhase
     reponse: str | None = None
+    qualite: str | None = None 

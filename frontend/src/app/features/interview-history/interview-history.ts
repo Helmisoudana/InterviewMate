@@ -16,7 +16,7 @@ export interface InterviewSession {
   title: string;
   date: string;
   duration: string;
-  score: number | null;
+  score:  string
   messages: ChatMessage[];
 }
 
@@ -30,7 +30,6 @@ export interface InterviewSession {
 export class InterviewHistoryComponent implements OnInit {
   private readonly sessionApi = inject(SessionApi);
 
-  // Signaux pour les états dynamiques
   readonly sessions = signal<InterviewSession[]>([]);
   readonly selectedSession = signal<InterviewSession | null>(null);
   readonly isLoadingMessages = signal<boolean>(false);
@@ -39,9 +38,7 @@ export class InterviewHistoryComponent implements OnInit {
     this.chargerSessions();
   }
 
-  /**
-   * Charger la liste des entretiens depuis l'API
-   */
+
   private chargerSessions(): void {
     this.sessionApi.getRecentInterviews(20).subscribe({
       next: (data: EntretienBackend[]) => {
@@ -49,14 +46,13 @@ export class InterviewHistoryComponent implements OnInit {
           id: item.session_id || item.id,
           title: item.poste || 'Entretien sans titre',
           date: this.formaterDate(item.timestamp),
-          duration: '15 min', // Optionnel ou calculable selon tes colonnes
-          score: item.statut === 'EN_COURS' ? null : 80,
-          messages: [], // Sera chargé lors de la sélection
+          duration: '15 min', 
+          score: item.statut,
+          messages: [], 
         }));
 
         this.sessions.set(listeFormatee);
 
-        // Sélectionner le premier entretien par défaut s'il y en a
         if (listeFormatee.length > 0) {
           this.selectSession(listeFormatee[0]);
         }
@@ -65,9 +61,7 @@ export class InterviewHistoryComponent implements OnInit {
     });
   }
 
-  /**
-   * Sélectionner un entretien et charger ses messages/échanges
-   */
+ 
   selectSession(session: InterviewSession): void {
     this.selectedSession.set(session);
     this.isLoadingMessages.set(true);
@@ -76,7 +70,7 @@ export class InterviewHistoryComponent implements OnInit {
       next: (echanges: EchangeBackend[]) => {
         const messages: ChatMessage[] = [];
 
-        // Transformer chaque ligne d'échange en 2 bulles de chat (Agent -> Candidat)
+
         echanges.forEach((ech) => {
           if (ech.question_agent) {
             messages.push({
@@ -94,7 +88,7 @@ export class InterviewHistoryComponent implements OnInit {
           }
         });
 
-        // Mettre à jour la session sélectionnée avec ses vrais messages
+
         const updatedSession = { ...session, messages };
         this.selectedSession.set(updatedSession);
         this.isLoadingMessages.set(false);

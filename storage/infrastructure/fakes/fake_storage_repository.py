@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from storage.domain.entities.echange import EchangePersiste
 from storage.domain.entities.rapport import RapportScorePersiste
@@ -21,7 +21,7 @@ class FakeStorageRepository(StorageRepositoryPort):
             self._entretien_ids[session_id] = str(uuid.uuid4())
         return self._entretien_ids[session_id]
 
-    async def initialiser_entretien(self, session_id: str) -> None:
+    async def initialiser_entretien(self, session_id: str, poste: str, langue: str, difficulte: str, timestamp) -> None:
         self._entretien_id_pour(session_id)
         self._statuts.setdefault(session_id, "EN_COURS")
 
@@ -47,3 +47,6 @@ class FakeStorageRepository(StorageRepositoryPort):
         rapport.date_creation = datetime.now()
         self._rapports[rapport.session_id] = rapport
         return rapport
+
+    async def recuperer_rapport(self, session_id: str) -> Optional[RapportScorePersiste]:
+        return self._rapports.get(session_id)

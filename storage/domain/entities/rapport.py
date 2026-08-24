@@ -10,6 +10,7 @@ class RapportScorePersiste:
     points_forts: List[str] = field(default_factory=list)
     points_faibles: List[str] = field(default_factory=list)
     recommandations: List[str] = field(default_factory=list)
+    evaluations: List[dict] = field(default_factory=list)
     score_technique: Optional[float] = None
     score_communication: Optional[float] = None
     id: Optional[int] = None

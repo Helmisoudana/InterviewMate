@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
 @Component({
@@ -13,8 +13,15 @@ export class InterviewEndComponent implements OnInit, OnDestroy {
   countdown = 60;
   private timerInterval?: number;
 
+  sessionId = '';
+  isDownloading = signal(false);
+
   ngOnInit(): void {
-    // Compte à rebours avant redirection automatique vers l'accueil
+    const state = history.state as { sessionId?: string };
+    if (state?.sessionId) {
+      this.sessionId = state.sessionId;
+    }
+
     this.timerInterval = window.setInterval(() => {
       this.countdown--;
       if (this.countdown <= 0) {
@@ -30,18 +37,45 @@ export class InterviewEndComponent implements OnInit, OnDestroy {
   }
 
   rejoinInterview(): void {
-    this.router.navigate(['/interview']);
+    this.router.navigate(['/setup']);
   }
 
   goToHome(): void {
-    this.router.navigate(['/']);
+    this.router.navigate(['/home']);
   }
 
-  viewReport(): void {
-    this.router.navigate(['/report']);
+  async viewReport(): Promise<void> {
+    if (!this.sessionId) {
+      this.goToHome();
+      return;
+    }
+
+    this.isDownloading.set(true);
+
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/scoring/${this.sessionId}/pdf`);
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `rapport_${this.sessionId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      this.goToHome();
+    } catch (error) {
+      console.error('[InterviewEndComponent] Erreur lors du téléchargement:', error);
+      this.isDownloading.set(false);
+      this.goToHome();
+    }
   }
 
-  sendFeedback(): void {
-    // Logique pour ouvrir un modal ou formulaire de feedback
-  }
+  sendFeedback(): void {}
 }
