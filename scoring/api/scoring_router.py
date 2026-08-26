@@ -1,7 +1,7 @@
+import os
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
-from dataclasses import asdict
-import os
+
 from storage.infrastructure.adapters.postgres_storage_repository import PostgresStorageRepository
 from storage.application.use_cases.get_session_transcript import GetSessionTranscriptUseCase
 from storage.application.use_cases.get_report import GetReportUseCase
@@ -22,40 +22,31 @@ router = APIRouter(prefix="/scoring")
 
 _storage_repo = PostgresStorageRepository.creer_depuis_env()
 
-GnererRapport = GenererRapportSessionUseCase(
+GenererRapport = GenererRapportSessionUseCase(
     llm_scorer=GroqScorerAdapter(),
     get_transcript_uc=GetSessionTranscriptUseCase(_storage_repo),
     save_report_uc=SaveFinalReportUseCase(_storage_repo),
     update_status_uc=UpdateStatusUseCase(_storage_repo)
-
 )
 
-GenererPdf=GenererPDF(
+GenererPdf = GenererPDF(
     get_report_uc=GetReportUseCase(_storage_repo)
-
 )
-
-
-
 
 @router.get("/{session_id}")
 async def obtenir_rapport(session_id: str):
-    rapport = await GnererRapport.executer(session_id)
+    rapport = await GenererRapport.executer(session_id)
+    
     return {
-                "session_id": rapport.session_id,
-                "score_global": rapport.score_global,
-                "score_technique": rapport.score_technique,
-                "score_communication": rapport.score_communication,
-                "points_forts": rapport.points_forts,
-                "points_faibles": rapport.points_faibles,
-                "recommandations": rapport.recommandations,
-                "evaluations": [asdict(ev) for ev in rapport.evaluations],
-            }
-    
-    
-        
-    
-
+        "session_id": rapport.session_id,
+        "score_global": rapport.score_global,
+        "score_technique": rapport.score_technique,
+        "score_communication": rapport.score_communication,
+        "points_forts": rapport.points_forts,
+        "points_faibles": rapport.points_faibles,
+        "recommandations": rapport.recommandations,
+        "evaluations": rapport.evaluations, 
+    }
 
 @router.get("/{session_id}/pdf")
 async def obtenir_rapport_pdf(session_id: str):

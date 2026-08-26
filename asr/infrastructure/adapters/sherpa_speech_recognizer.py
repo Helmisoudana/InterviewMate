@@ -1,34 +1,36 @@
 from __future__ import annotations
 
+import os
 from typing import Dict
 
+from dotenv import load_dotenv
 import numpy as np
 import sherpa_onnx
 
 from shared.domain import SessionID, TranscriptionResult
 
+load_dotenv()
+
 SAMPLE_RATE = 16_000
 
 
 class SherpaSpeechRecognizer:
-   
 
-    def __init__(
-        self,
-        tokens: str,
-        encoder: str,
-        decoder: str,
-        joiner: str,
-        num_threads: int = 2,
-        provider: str = "cpu",
-        sample_rate: int = SAMPLE_RATE,
-        feature_dim: int = 80,
-        decoding_method: str = "greedy_search",
-        enable_endpoint_detection: bool = True,
-        rule1_min_trailing_silence: float = 2.4,
-        rule2_min_trailing_silence: float = 1.2,
-        rule3_min_utterance_length: float = 20.0,
-    ) -> None:
+    def __init__(self) -> None:
+        tokens = os.environ["TOKENS"]
+        encoder = os.environ["ENCODER"]
+        decoder = os.environ["DECODER"]
+        joiner = os.environ["JOINER"]
+        num_threads = int(os.environ["NUM_THREADS"])
+        provider = os.environ["PROVIDER"]
+        sample_rate = int(os.environ["SAMPLE_RATE"])
+        feature_dim = int(os.environ["FEATURE_DIM"])
+        decoding_method = os.environ["DECODING_METHOD"]
+        enable_endpoint_detection = os.environ["ENABLE_ENDPOINT_DETECTION"].lower() == "true"
+        rule1_min_trailing_silence = float(os.environ["RULE1_MIN_TRAILING_SILENCE"])
+        rule2_min_trailing_silence = float(os.environ["RULE2_MIN_TRAILING_SILENCE"])
+        rule3_min_utterance_length = float(os.environ["RULE3_MIN_UTTERANCE_LENGTH"])
+
         self._recognizer = sherpa_onnx.OnlineRecognizer.from_transducer(
             tokens=tokens,
             encoder=encoder,
@@ -115,7 +117,7 @@ class SherpaSpeechRecognizer:
         self._octets_deja_envoyes.pop(cle, None)
 
     def est_fin_de_parole_detectee(self, session_id: SessionID) -> bool:
-        
+
         cle = session_id.value
         stream = self._streams.get(cle)
         if stream is None:
