@@ -178,7 +178,8 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
             sequence_number=self._sequence
         )
         try:
-            await self._receive_chunk.executer(self._session, chunk)
+            # FIX: Transmission de silence_detecte=False par défaut
+            await self._receive_chunk.executer(self._session, chunk, silence_detecte=False)
         except SessionNonActiveError as e:
             logger.warning("Chunk ignoré : %s", e)
 

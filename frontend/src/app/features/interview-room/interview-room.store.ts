@@ -123,6 +123,7 @@ export class InterviewRoomStore implements OnDestroy {
   endCall(): void {
     if (this.timerInterval) clearInterval(this.timerInterval);
     this.stopMicStreaming();
+    this.stopPlaybackAudio();
     this.gateway.close();
 
     this._state.update((s) => ({
@@ -175,6 +176,14 @@ export class InterviewRoomStore implements OnDestroy {
     this.audioContext = null;
   }
 
+  private stopPlaybackAudio(): void {
+    if (this.playbackContext && this.playbackContext.state !== 'closed') {
+      this.playbackContext.close();
+    }
+    this.playbackContext = null;
+    this.playbackQueueTime = 0;
+  }
+
   private downsampleAndEncodePCM16(
     input: Float32Array,
     inputSampleRate: number,
@@ -201,13 +210,13 @@ export class InterviewRoomStore implements OnDestroy {
     return output;
   }
 
-  // Ajusté à 16000 Hz pour correspondre au flux TTS du backend
   private readonly TTS_FALLBACK_SAMPLE_RATE = 16000;
 
   private async enqueueAudioPlayback(chunk: ArrayBuffer): Promise<void> {
+    if (!this._state().isCallConnected) return;
+
     if (!this.playbackContext) {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      // On utilise le même taux de 16000 Hz que le backend
       this.playbackContext = new AudioCtx({ sampleRate: 16000 });
       this.playbackQueueTime = this.playbackContext.currentTime;
     }
