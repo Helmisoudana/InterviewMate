@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, HostListener, ViewChild, ElementRef, signal } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, HostListener, ViewChild, ElementRef, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { InterviewRoomStore } from './interview-room.store';
@@ -8,6 +8,7 @@ import { VideoTile } from './components/video-tile/video-tile';
 import { LiveTranscript } from './components/live-transcript/live-transcript';
 import { ControlBar } from './components/control-bar/control-bar';
 import { InterviewConfig } from '../../core/gateway/gateway.types';
+import { MediaDeviceService } from '../../core/media/media-devices';
 
 @Component({
   selector: 'app-interview-room',
@@ -17,9 +18,10 @@ import { InterviewConfig } from '../../core/gateway/gateway.types';
   templateUrl: './interview-room.html',
   styleUrl: './interview-room.scss',
 })
-export class InterviewRoomComponent implements OnInit {
+export class InterviewRoomComponent implements OnInit, OnDestroy {
   readonly store = inject(InterviewRoomStore);
   private readonly router = inject(Router);
+  private readonly mediaDevice = inject(MediaDeviceService);
 
   @ViewChild('mainTile') mainTileRef!: ElementRef<HTMLDivElement>;
 
@@ -28,7 +30,6 @@ export class InterviewRoomComponent implements OnInit {
   pipPosition = { x: 0, y: 0 };
   dragStartPos = { x: 0, y: 0 };
 
-  // État de génération du rapport
   isGeneratingReport = signal(false);
   private sessionId = '';
 
@@ -49,30 +50,39 @@ export class InterviewRoomComponent implements OnInit {
     this.store.startSession(state.sessionId, state.config);
   }
 
+  ngOnDestroy(): void {
+    this.cleanupSession();
+  }
+
   toggleTranscript(): void {
     this.showTranscript = !this.showTranscript;
   }
 
-  async onEndCall(): Promise<void> {
-    // 1. Déconnexion WebRTC / Clôture de l'appel
+  private cleanupSession(): void {
     this.store.endCall();
     
-    // 2. Affichage de la page de chargement (style waiting-room)
+    const currentStream = this.mediaDevice.getCurrentStream();
+    if (currentStream) {
+      currentStream.getTracks().forEach((track) => track.stop());
+    }
+  }
+
+  async onEndCall(): Promise<void> {
+    this.cleanupSession();
     this.isGeneratingReport.set(true);
 
     try {
-      // 3. Appel de l'API backend pour générer le rapport
       const response = await fetch(`http://127.0.0.1:8000/scoring/${this.sessionId}`);
-      
+
       if (!response.ok) {
         throw new Error(`Erreur lors de la génération du rapport: ${response.statusText}`);
       }
 
-      const rapport = await response.json();
+      await response.json();
 
       this.router.navigate(['/interview/end'], {
-      state: { sessionId: this.sessionId }
-    });
+        state: { sessionId: this.sessionId }
+      });
 
     } catch (error) {
       console.error('[InterviewRoomComponent] Échec lors de la génération du rapport:', error);
@@ -81,6 +91,7 @@ export class InterviewRoomComponent implements OnInit {
   }
 
   backToSetup(): void {
+    this.cleanupSession();
     this.router.navigate(['/setup']);
   }
 
