@@ -32,3 +32,4 @@ modelscuda_*.run
 *.zip
 
 models/
+pdf/
