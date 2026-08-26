@@ -21,7 +21,6 @@ from gateway.application.use_cases.request_reconnection import RequestReconnecti
 from gateway.application.use_cases.close_session import CloseSessionUseCase
 from gateway.application.use_cases.handle_transcription_result import HandleTranscriptionResultUseCase
 
-from gateway.infrastructure.adapters.simple_vad import is_silence, calculer_rms
 from gateway.infrastructure.adapters.session_registry import SessionRegistry
 
 logger = logging.getLogger(__name__)
@@ -178,11 +177,8 @@ class WebSocketConnectionHandler(AudioBroadcasterPort):
             data=data,
             sequence_number=self._sequence
         )
-        silence = is_silence(data)
-        if self._sequence % 20 == 0:
-            logger.debug("RMS=%.1f silence=%s", calculer_rms(data), silence)
         try:
-            await self._receive_chunk.executer(self._session, chunk, silence_detecte=silence)
+            await self._receive_chunk.executer(self._session, chunk)
         except SessionNonActiveError as e:
             logger.warning("Chunk ignoré : %s", e)
 
