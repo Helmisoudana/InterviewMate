@@ -67,7 +67,11 @@ export class InterviewRoomStore implements OnDestroy {
   private playbackQueueTime = 0;
 
   toggleMute(): void {
-    this._state.update((s) => ({ ...s, isMuted: !s.isMuted }));
+    this._state.update((s) => {
+      const newMuted = !s.isMuted;
+      console.log(`[InterviewRoomStore] Micro Mute togglé: ${newMuted}`);
+      return { ...s, isMuted: newMuted };
+    });
   }
 
   toggleVideo(): void {
@@ -77,6 +81,7 @@ export class InterviewRoomStore implements OnDestroy {
   async startSession(sessionId: string, config: InterviewConfig): Promise<void> {
     if (this._state().isCallConnected) return;
 
+    console.log('[InterviewRoomStore] Démarrage de la session avec config:', config);
     this.roomStatus.set('connecting');
     this.errorMessage.set(null);
 
@@ -84,13 +89,18 @@ export class InterviewRoomStore implements OnDestroy {
       onSessionReady: () => this.handleSessionReady(),
       onAgentMessage: (text) => this.handleAgentMessage(text),
       onTranscription: (text) => this.handleTranscription(text),
+      onAgentSpeakingStateChange: (isSpeaking) => {
+        console.log(`[InterviewRoomStore] Signal Réseau AgentSpeaking: ${isSpeaking}`);
+        this.setAgentSpeaking(isSpeaking);
+      },
       onAudioChunk: (chunk) => this.enqueueAudioPlayback(chunk),
       onClose: (code, reason) => this.handleClose(code, reason),
-      onError: (e) => console.error('[InterviewRoomStore] erreur WebSocket', e),
+      onError: (e) => console.error('[InterviewRoomStore] Erreur WebSocket', e),
     });
   }
 
   private handleSessionReady(): void {
+    console.log('[InterviewRoomStore] Session Prête (Session Ready)');
     this._state.update((s) => ({ ...s, isCallConnected: true }));
     this.roomStatus.set('preparing');
 
@@ -102,17 +112,19 @@ export class InterviewRoomStore implements OnDestroy {
   }
 
   private handleAgentMessage(text: string): void {
+    console.log('[InterviewRoomStore] Message Agent reçu:', text);
     this.setAgentSpeaking(true);
     this.addMessage('agent', text);
   }
 
   private handleTranscription(text: string): void {
+    console.log('[InterviewRoomStore] Transcription Candidat reçue:', text);
     this.setCandidateSpeaking(false);
     this.addMessage('candidate', text);
   }
 
   private handleClose(code: number, reason: string): void {
-    console.warn(`[InterviewRoomStore] session fermée (${code}) : ${reason}`);
+    console.warn(`[InterviewRoomStore] Session fermée (${code}) : ${reason}`);
     if (this.roomStatus() !== 'live') {
       this.roomStatus.set('error');
       this.errorMessage.set(reason);
@@ -121,6 +133,7 @@ export class InterviewRoomStore implements OnDestroy {
   }
 
   endCall(): void {
+    console.log('[InterviewRoomStore] Fin de l\'appel');
     if (this.timerInterval) clearInterval(this.timerInterval);
     this.stopMicStreaming();
     this.stopPlaybackAudio();
@@ -138,10 +151,11 @@ export class InterviewRoomStore implements OnDestroy {
   private startMicStreaming(): void {
     const stream = this.mediaDevice.getCurrentStream();
     if (!stream) {
-      console.error('[InterviewRoomStore] aucun flux micro disponible (passer par /pre-call).');
+      console.error('[InterviewRoomStore] Aucun flux micro disponible.');
       return;
     }
 
+    console.log('[InterviewRoomStore] Initialisation du streaming Micro...');
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
     this.audioContext = new AudioCtx();
 
@@ -151,10 +165,20 @@ export class InterviewRoomStore implements OnDestroy {
     const inputSampleRate = this.audioContext.sampleRate;
 
     this.micProcessor.onaudioprocess = (event: AudioProcessingEvent) => {
-      if (this._state().isMuted || !this._state().isCallConnected) return;
+      const isMuted = this._state().isMuted;
+      const isConnected = this._state().isCallConnected;
+      const isAgentSpeaking = this._state().agentSpeaking;
+
+      if (isMuted || !isConnected || isAgentSpeaking) {
+        if (this._state().candidateSpeaking) {
+          this.setCandidateSpeaking(false);
+        }
+        return; // ON N'ENVOIE RIEN AU BACKEND
+      }
 
       const input = event.inputBuffer.getChannelData(0);
       const pcm16 = this.downsampleAndEncodePCM16(input, inputSampleRate, ASR_TARGET_SAMPLE_RATE);
+
       this.gateway.sendAudioChunk(pcm16.buffer as ArrayBuffer);
 
       const rms = Math.sqrt(input.reduce((sum, v) => sum + v * v, 0) / input.length);
@@ -166,6 +190,7 @@ export class InterviewRoomStore implements OnDestroy {
   }
 
   private stopMicStreaming(): void {
+    console.log('[InterviewRoomStore] Arrêt du streaming Micro');
     this.micProcessor?.disconnect();
     this.micSource?.disconnect();
     if (this.audioContext && this.audioContext.state !== 'closed') {
@@ -244,9 +269,13 @@ export class InterviewRoomStore implements OnDestroy {
       this.roomStatus.set('live');
     }
 
+    // Activer l'état AgentSpeaking pour verrouiller le micro
     this.setAgentSpeaking(true);
+
     source.onended = () => {
+      // Vérification que tous les chunks audio enregistrés ont fini de jouer
       if (this.playbackContext && this.playbackContext.currentTime >= this.playbackQueueTime - 0.05) {
+        console.log('[InterviewRoomStore] 🔊 L\'Agent a fini de parler. Libération du micro candidat.');
         this.setAgentSpeaking(false);
       }
     };
@@ -264,11 +293,16 @@ export class InterviewRoomStore implements OnDestroy {
   }
 
   private setAgentSpeaking(speaking: boolean): void {
-    this._state.update((s) => ({ ...s, agentSpeaking: speaking }));
+    if (this._state().agentSpeaking !== speaking) {
+      console.log(`[InterviewRoomStore] State agentSpeaking changé à : ${speaking} ${speaking ? '⛔ (Audio candidat bloqué)' : '🎙️ (Micro candidat ouvert)'}`);
+      this._state.update((s) => ({ ...s, agentSpeaking: speaking }));
+    }
   }
 
   private setCandidateSpeaking(speaking: boolean): void {
-    this._state.update((s) => ({ ...s, candidateSpeaking: speaking }));
+    if (this._state().candidateSpeaking !== speaking) {
+      this._state.update((s) => ({ ...s, candidateSpeaking: speaking }));
+    }
   }
 
   private addMessage(sender: 'agent' | 'candidate', text: string): void {
