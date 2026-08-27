@@ -1,3 +1,4 @@
+import logging
 from agent.domain.entities.echange import Echange
 from agent.domain.services.system_prompt_builder import construire_prompt_systeme
 from agent.domain.services.llm_json_client import appeler_llm_json, ReponseLLMInvalide
@@ -7,6 +8,8 @@ from agent.domain.value_objects.message import Message
 from agent.domain.value_objects.interview_phase import InterviewPhase, DifficultyLevel
 from agent.infrastructure.adapters.session_registry import AgentSessionRegistry
 from shared.domain import SessionID
+
+logger = logging.getLogger("conduire_entretien")
 
 
 class ConduireEntretienUseCase:
@@ -24,25 +27,28 @@ class ConduireEntretienUseCase:
         session_id_str = session_id.value if isinstance(session_id, SessionID) else session_id
         interview = self.registry.obtenir(session_id_str)
 
+        # 1. Mettre à jour la réponse du dernier échange s'il existe
         if interview.echanges:
             interview.echanges[-1].reponse = texte_reponse
 
         prompt_systeme = construire_prompt_systeme(interview)
         messages = [
             Message(role="system", content=prompt_systeme),
-            Message(role="user", content=texte_reponse),
+            Message(role="user", content=f"Réponse orale du candidat (transcription STT): {texte_reponse}"),
         ]
+        
         try:
             resultat = await appeler_llm_json(self.llm, messages)
         except ReponseLLMInvalide:
-
             raise
 
+        # 2. Mettre à jour la qualité et notifier le stockage
         if interview.echanges:
             interview.echanges[-1].qualite = resultat.get("qualite_reponse_precedente")
             if self.storage_notifier is not None:
                 await self.storage_notifier.notifier_echange_termine(session_id_str, interview.echanges[-1])
 
+        # 3. Mettre à jour la difficulté et la phase
         interview.difficulte_actuelle = DifficultyLevel(
             resultat.get("difficulte_suivante", interview.difficulte_actuelle.value)
         )
@@ -54,7 +60,26 @@ class ConduireEntretienUseCase:
             self.registry.sauvegarder(session_id_str, interview)
             return "", True
 
-        nouvelle_question = resultat.get("question", "")
+        nouvelle_question = resultat.get("question", "").strip()
+
+
+        questions_deja_posees = {e.question.strip().lower() for e in interview.echanges if e.question}
+
+        # Si le LLM renvoie une question déjà posée (ou vide), on redemande une relance explicite au LLM
+        if nouvelle_question.lower() in questions_deja_posees or not nouvelle_question:
+            logger.warning("Répétition détectée ('%s'). Relance du LLM avec consigne stricte.", nouvelle_question)
+            
+            messages.append(Message(role="assistant", content=f'{{"question": "{nouvelle_question}"}}'))
+            messages.append(
+                Message(
+                    role="user",
+                    content="ERREUR: Tu as répété une question déjà posée. Pose UNE NOUVELLE question différente en rapport avec la phase actuelle."
+                )
+            )
+            resultat_corrige = await appeler_llm_json(self.llm, messages)
+            nouvelle_question = resultat_corrige.get("question", "").strip()
+
+        # 4. Enregistrer et sauvegarder
         interview.echanges.append(Echange(question=nouvelle_question, phase=interview.phase_actuelle))
         self.registry.sauvegarder(session_id_str, interview)
 
