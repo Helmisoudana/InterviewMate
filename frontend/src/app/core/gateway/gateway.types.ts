@@ -53,6 +53,11 @@ export interface GatewayAgentMessage {
   text: string;
 }
 
+export interface GatewayAgentQuestionMessage {
+  type: 'agent_question';
+  text: string;
+}
+
 export interface GatewayAgentSpeakingMessage {
   type: 'agent_speaking';
   speaking: boolean;
@@ -63,6 +68,7 @@ export type GatewayIncomingMessage =
   | GatewayReconnectedMessage
   | GatewayTranscriptionMessage
   | GatewayAgentMessage
+  | GatewayAgentQuestionMessage
   | GatewayAgentSpeakingMessage;
 
 export type GatewayIncomingAudioChunk = ArrayBuffer | Blob;
