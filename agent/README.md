@@ -98,7 +98,7 @@ l'entretien.
 
 ## Schéma
 
-![Architecture du module agent](Docs\architecture_agent.svg)
+![Architecture du module agent](../Docs/agent.webp)
 
 ## Architecture
 
