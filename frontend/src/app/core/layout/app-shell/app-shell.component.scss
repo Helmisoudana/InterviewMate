@@ -24,11 +24,10 @@
   text-decoration: none;
 }
 
-.shell__brand-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--color-accent);
+.shell__brand-logo {
+  height: 60px;
+  width: auto;
+  object-fit: contain;
 }
 
 .shell__content {
