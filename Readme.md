@@ -2,8 +2,6 @@
   <img src="Docs/assets/logo.webp" width="300" alt="Logo Interview Mate">
 </p>
 
-<h1 align="center">Interview Mate</h1>
-
 <p align="center">
   Simulation d'entretien d'embauche assistée par IA, en conditions réelles et en temps réel.
 </p>
