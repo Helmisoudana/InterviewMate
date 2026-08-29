@@ -12,7 +12,7 @@ voix du candidat en texte, `tts` transforme le texte de l'agent en voix.
 
 ## Schéma
 
-![Architecture du module tts](../Docs/tts.webp)
+![Architecture du module tts](../Docs/assets/tts.webp)
 
 ## Déroulement d'une synthèse
 

@@ -1,0 +1,113 @@
+<svg width="100%" viewBox="0 0 920 540" role="img" xmlns="http://www.w3.org/2000/svg">
+<title style="font-family:'Segoe UI', sans-serif;font-size:16px;">Diagramme de Séquence - Entretien Vocal</title>
+<desc style="font-family:'Segoe UI', sans-serif;font-size:14px;">Flux d'échange de données entre le candidat, la gateway, ASR, Agent, TTS et la session.</desc>
+
+<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<style>
+  text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .label-title { font-size: 13px; font-weight: 600; text-anchor: middle; dominant-baseline: central; }
+  .label-sub { font-size: 11px; font-weight: 400; text-anchor: middle; dominant-baseline: central; }
+  .seq-label { font-size: 11px; font-weight: 500; fill: #2D3748; text-anchor: middle; }
+  .dashed-line { stroke-dasharray: 5 4; }
+  .lifeline { stroke: #CBD5E0; stroke-width: 1.5; stroke-dasharray: 6 4; }
+</style>
+
+<!-- PARTICIPANTS (LIGNES DE VIE) -->
+<!-- Positions X: C=70, GW=210, ASR=350, AGT=490, TTS=630, SES=770 -->
+
+<!-- 1. Candidat -->
+<g>
+  <rect x="20" y="20" width="100" height="45" rx="6" fill="#EDF2F7" stroke="#CBD5E0" stroke-width="1.5"/>
+  <text x="70" y="37" class="label-title" fill="#2D3748">Candidat</text>
+  <text x="70" y="52" class="label-sub" fill="#718096">(navigateur)</text>
+  <line x1="70" y1="65" x2="70" y2="510" class="lifeline"/>
+</g>
+
+<!-- 2. Gateway -->
+<g>
+  <rect x="160" y="20" width="100" height="45" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.5"/>
+  <text x="210" y="37" class="label-title" fill="#085041">gateway</text>
+  <text x="210" y="52" class="label-sub" fill="#0F6E56">(WS)</text>
+  <line x1="210" y1="65" x2="210" y2="510" class="lifeline"/>
+</g>
+
+<!-- 3. ASR -->
+<g>
+  <rect x="300" y="20" width="100" height="45" rx="6" fill="#FAECE7" stroke="#993C1D" stroke-width="1.5"/>
+  <text x="350" y="37" class="label-title" fill="#712B13">asr</text>
+  <text x="350" y="52" class="label-sub" fill="#993C1D">(whisper)</text>
+  <line x1="350" y1="65" x2="350" y2="510" class="lifeline"/>
+</g>
+
+<!-- 4. Agent -->
+<g>
+  <rect x="440" y="20" width="100" height="45" rx="6" fill="#FAECE7" stroke="#993C1D" stroke-width="1.5"/>
+  <text x="490" y="37" class="label-title" fill="#712B13">agent</text>
+  <text x="490" y="52" class="label-sub" fill="#993C1D">(Ollama)</text>
+  <line x1="490" y1="65" x2="490" y2="510" class="lifeline"/>
+</g>
+
+<!-- 5. TTS -->
+<g>
+  <rect x="580" y="20" width="100" height="45" rx="6" fill="#FAECE7" stroke="#993C1D" stroke-width="1.5"/>
+  <text x="630" y="37" class="label-title" fill="#712B13">tts</text>
+  <text x="630" y="52" class="label-sub" fill="#993C1D">(Piper)</text>
+  <line x1="630" y1="65" x2="630" y2="510" class="lifeline"/>
+</g>
+
+<!-- 6. Session -->
+<g>
+  <rect x="720" y="20" width="100" height="45" rx="6" fill="#FAECE7" stroke="#993C1D" stroke-width="1.5"/>
+  <text x="770" y="37" class="label-title" fill="#712B13">session</text>
+  <text x="770" y="52" class="label-sub" fill="#993C1D">(état)</text>
+  <line x1="770" y1="65" x2="770" y2="510" class="lifeline"/>
+</g>
+
+<!-- ÉCHANGES (FLÈCHES) -->
+
+<!-- 1. C -> GW : flux audio (parole) -->
+<line x1="70" y1="90" x2="210" y2="90" stroke="#2B6CB0" stroke-width="1.5" marker-end="url(#arrow)"/>
+<text x="140" y="80" class="seq-label">flux audio (parole)</text>
+
+<!-- 2. GW -> ASR : audio brut -->
+<line x1="210" y1="130" x2="350" y2="130" stroke="#2B6CB0" stroke-width="1.5" marker-end="url(#arrow)"/>
+<text x="280" y="120" class="seq-label">audio brut</text>
+
+<!-- 3. ASR -->> GW : texte transcrit -->
+<line x1="350" y1="170" x2="210" y2="170" stroke="#718096" stroke-width="1.5" class="dashed-line" marker-end="url(#arrow)"/>
+<text x="280" y="160" class="seq-label">texte transcrit</text>
+
+<!-- 4. GW -> SES : enregistre la réponse -->
+<line x1="210" y1="210" x2="770" y2="210" stroke="#2B6CB0" stroke-width="1.5" marker-end="url(#arrow)"/>
+<text x="490" y="200" class="seq-label">enregistre la réponse</text>
+
+<!-- 5. GW -> AGT : contexte + réponse candidat -->
+<line x1="210" y1="250" x2="490" y2="250" stroke="#2B6CB0" stroke-width="1.5" marker-end="url(#arrow)"/>
+<text x="350" y="240" class="seq-label">contexte + réponse candidat</text>
+
+<!-- 6. AGT -->> GW : question suivante générée -->
+<line x1="490" y1="290" x2="210" y2="290" stroke="#718096" stroke-width="1.5" class="dashed-line" marker-end="url(#arrow)"/>
+<text x="350" y="280" class="seq-label">question suivante générée</text>
+
+<!-- 7. GW -> TTS : texte de la question -->
+<line x1="210" y1="330" x2="630" y2="330" stroke="#2B6CB0" stroke-width="1.5" marker-end="url(#arrow)"/>
+<text x="420" y="320" class="seq-label">texte de la question</text>
+
+<!-- 8. TTS -->> GW : audio synthétisé -->
+<line x1="630" y1="370" x2="210" y2="370" stroke="#718096" stroke-width="1.5" class="dashed-line" marker-end="url(#arrow)"/>
+<text x="420" y="360" class="seq-label">audio synthétisé</text>
+
+<!-- 9. GW -->> C : audio de la question suivante -->
+<line x1="210" y1="410" x2="70" y2="410" stroke="#718096" stroke-width="1.5" class="dashed-line" marker-end="url(#arrow)"/>
+<text x="140" y="400" class="seq-label">audio de la question suivante</text>
+
+<!-- 10. SES -> SES : met à jour scoring / historique -->
+<path d="M 770 440 L 810 440 L 810 465 L 770 465" fill="none" stroke="#2B6CB0" stroke-width="1.5" marker-end="url(#arrow)"/>
+<text x="815" y="455" class="seq-label" text-anchor="start">met à jour scoring / historique</text>
+
+</svg>

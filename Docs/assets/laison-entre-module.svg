@@ -1,0 +1,109 @@
+<svg width="100%" viewBox="0 0 980 620" role="img" xmlns="http://www.w3.org/2000/svg">
+<title style="font-family:'Segoe UI', sans-serif;font-size:16px;">Architecture Hexagonale - Aérée</title>
+<desc style="font-family:'Segoe UI', sans-serif;font-size:14px;">Schéma aéré de l'architecture hexagonale avec ports IN/OUT et le module Shared.</desc>
+
+<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<style>
+  text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .label-title { font-size: 14px; font-weight: 600; text-anchor: middle; dominant-baseline: central; }
+  .label-sub { font-size: 12px; font-weight: 400; text-anchor: middle; dominant-baseline: central; }
+  .port-label { font-size: 12px; font-weight: 500; fill: #4A5568; text-anchor: middle; }
+  .dashed-line { stroke-dasharray: 5 4; }
+</style>
+
+<!-- 1. ENTREE: ADAPTER WEBSOCKET (GW) -->
+<g>
+  <rect x="50" y="210" width="160" height="70" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.5"/>
+  <text x="130" y="235" class="label-title" fill="#085041">gateway</text>
+  <text x="130" y="255" class="label-sub" fill="#0F6E56">(WebSocket)</text>
+</g>
+
+<!-- FLÈCHE DE LOGIQUE: GW -> CORE (Port IN) -->
+<text x="275" y="225" class="port-label">appelle port IN</text>
+<line x1="210" y1="245" x2="340" y2="245" stroke="#718096" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<!-- 2. DOMAINE (CORE) -->
+<g>
+  <rect x="340" y="195" width="200" height="100" rx="10" fill="#2B6CB0" stroke="#1A365D" stroke-width="1.5"/>
+  <text x="440" y="233" class="label-title" fill="#FFFFFF">Domaine</text>
+  <text x="440" y="258" class="label-sub" fill="#E2E8F0">orchestration entretien</text>
+</g>
+
+<!-- FLÈCHES DE SORTIE (CORE -> OUT PORTS -> ADAPTERS) -->
+
+<!-- Port ASR -->
+<line x1="540" y1="215" x2="720" y2="75" stroke="#718096" stroke-width="1.5" marker-end="url(#arrow)"/>
+<text x="615" y="125" class="port-label">port OUT ASR</text>
+
+<!-- Port Agent -->
+<line x1="540" y1="235" x2="720" y2="185" stroke="#718096" stroke-width="1.5" marker-end="url(#arrow)"/>
+<text x="625" y="195" class="port-label">port OUT Agent</text>
+
+<!-- Port TTS -->
+<line x1="540" y1="255" x2="720" y2="295" stroke="#718096" stroke-width="1.5" marker-end="url(#arrow)"/>
+<text x="625" y="290" class="port-label">port OUT TTS</text>
+
+<!-- Port Session -->
+<line x1="540" y1="275" x2="720" y2="405" stroke="#718096" stroke-width="1.5" marker-end="url(#arrow)"/>
+<text x="615" y="360" class="port-label">port OUT Session</text>
+
+<!-- 3. ADAPTERS DE SORTIE -->
+<!-- ASR -->
+<g>
+  <rect x="720" y="40" width="200" height="70" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="1.5"/>
+  <text x="820" y="65" class="label-title" fill="#712B13">asr</text>
+  <text x="820" y="85" class="label-sub" fill="#993C1D">faster-whisper</text>
+</g>
+
+<!-- AGENT -->
+<g>
+  <rect x="720" y="150" width="200" height="70" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="1.5"/>
+  <text x="820" y="175" class="label-title" fill="#712B13">agent</text>
+  <text x="820" y="195" class="label-sub" fill="#993C1D">Ollama</text>
+</g>
+
+<!-- TTS -->
+<g>
+  <rect x="720" y="260" width="200" height="70" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="1.5"/>
+  <text x="820" y="285" class="label-title" fill="#712B13">tts</text>
+  <text x="820" y="305" class="label-sub" fill="#993C1D">Piper</text>
+</g>
+
+<!-- SESSION -->
+<g>
+  <rect x="720" y="370" width="200" height="70" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="1.5"/>
+  <text x="820" y="395" class="label-title" fill="#712B13">session</text>
+  <text x="820" y="415" class="label-sub" fill="#993C1D">état en mémoire</text>
+</g>
+
+<!-- 4. MODULE SHARED (AU BAS DU SCHÉMA) -->
+<g>
+  <rect x="330" y="510" width="220" height="70" rx="8" fill="#718096" stroke="#4A5568" stroke-width="1.5"/>
+  <text x="440" y="535" class="label-title" fill="#FFFFFF">shared</text>
+  <text x="440" y="555" class="label-sub" fill="#E2E8F0">(types, erreurs)</text>
+</g>
+
+<!-- DÉPENDANCES ET DÉPLACEMENTS DU MODULE SHARED -->
+<!-- Shared -> GW -->
+<path d="M 330 545 C 130 545, 130 350, 130 280" fill="none" stroke="#A0AEC0" stroke-width="1.5" class="dashed-line" marker-end="url(#arrow)"/>
+
+<!-- Shared -> CORE -->
+<line x1="440" y1="510" x2="440" y2="295" stroke="#A0AEC0" stroke-width="1.5" class="dashed-line" marker-end="url(#arrow)"/>
+
+<!-- Shared -> ADAPTERS (Routage propre par la droite) -->
+<path d="M 550 545 C 950 545, 950 90, 920 75" fill="none" stroke="#A0AEC0" stroke-width="1.5" class="dashed-line" marker-end="url(#arrow)"/>
+<path d="M 550 545 C 940 545, 940 200, 920 185" fill="none" stroke="#A0AEC0" stroke-width="1.5" class="dashed-line" marker-end="url(#arrow)"/>
+<path d="M 550 545 C 930 545, 930 310, 920 295" fill="none" stroke="#A0AEC0" stroke-width="1.5" class="dashed-line" marker-end="url(#arrow)"/>
+<path d="M 550 545 C 920 545, 920 420, 920 405" fill="none" stroke="#A0AEC0" stroke-width="1.5" class="dashed-line" marker-end="url(#arrow)"/>
+
+<!-- Étiquettes de dépendance -->
+<text x="180" y="470" class="port-label" fill="#718096">utilisé par</text>
+<text x="440" y="415" class="port-label" fill="#718096">utilisé par</text>
+<text x="730" y="535" class="port-label" fill="#718096">utilisé par</text>
+
+</svg>

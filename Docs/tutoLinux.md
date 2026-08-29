@@ -1,12 +1,20 @@
-# Tuto de setup — InterviewMate (Windows)
+# Tuto de setup — InterviewMate (Linux : Ubuntu / openSUSE)
 
-Ce tuto couvre l'installation complète du projet en local, sur Windows
-(CMD / PowerShell). Il permet de partir d'un poste vierge et d'arriver à
-un `python -m gateway.server` qui tourne sans erreur.
+Ce tuto couvre l'installation complète du projet en local, sur Linux. Il
+permet de partir d'un poste vierge et d'arriver à un
+`python -m gateway.server` qui tourne sans erreur.
 
-> La version Linux (Helmi) suit le même plan — seules les commandes
-> d'installation système changent (`apt` au lieu des installateurs
-> `.exe`, `wget`/`rm` au lieu de `curl.exe`/`del`, etc.).
+Les deux distributions couvertes sont **Ubuntu** (`apt`) et **openSUSE**
+(`zypper`). Chaque fois qu'une commande d'installation système diffère,
+les deux versions sont données côte à côte. Le reste (venv, pip,
+PostgreSQL via `psql`, Ollama, Sherpa, lancement du serveur) est
+strictement identique sur les deux distributions, puisqu'il ne dépend
+pas du gestionnaire de paquets.
+
+> La version Windows (CMD/PowerShell) suit le même plan — seules les
+> commandes d'installation système et quelques alias changent
+> (`curl.exe`/`del` au lieu de `curl`/`rm`, installateurs `.exe` au lieu
+> de `apt`/`zypper`, etc.).
 
 ---
 
@@ -41,13 +49,33 @@ faire.
 | Espace disque | ~5-10 Go (modèles ASR + TTS + LLM cumulés) |
 | GPU | recommandé (accélère Ollama), pas obligatoire — CPU fonctionne, plus lent |
 
+**Paquets système à installer avant de commencer** (compilateurs et
+en-têtes nécessaires à certaines dépendances Python compilées) :
+
+Ubuntu :
+```bash
+sudo apt update
+sudo apt install -y build-essential python3.12 python3.12-venv python3-pip git curl
+```
+
+openSUSE :
+```bash
+sudo zypper refresh
+sudo zypper install -y -t pattern devel_basis
+sudo zypper install -y python312 python312-pip git curl
+```
+> Sur openSUSE, le module `venv` est déjà inclus dans le paquet
+> `python312` (pas de paquet `-venv` séparé comme sur Ubuntu).
+
+---
+
 ## 1. Vue d'ensemble
 
 Tout le projet est piloté par un seul fichier `.env`, qui alimente cinq
 services externes (base de données, ASR, LLM, TTS, scoring), tous
 assemblés au démarrage par `ApplicationContainer` (`gateway/server.py`) :
 
-![Vue d'ensemble du setup](../Docs/tuto_setup_windows.webp)
+![Vue d'ensemble du setup](../Docs/assets/tuto_setup_windows.webp)
 
 ---
 
@@ -56,53 +84,51 @@ assemblés au démarrage par `ApplicationContainer` (`gateway/server.py`) :
 Quelques vérifications rapides évitent de télécharger plusieurs Go de
 modèles pour découvrir après coup que ça ne suit pas.
 
-**Vérifier la VRAM disponible (si carte NVIDIA) :**
-```powershell
+**Vérifier la VRAM disponible (si carte NVIDIA)** — identique sur
+Ubuntu et openSUSE :
+```bash
 nvidia-smi
 ```
-Sinon : `Gestionnaire des tâches` → onglet `Performance` → `GPU` → ligne
-`Mémoire GPU dédiée`.
 
 **Vérifier la RAM totale :**
-```powershell
-systeminfo | findstr /C:"Mémoire physique totale"
+```bash
+free -h
 ```
 
 **Vérifier l'espace disque libre :**
-```powershell
-Get-PSDrive C
+```bash
+df -h .
 ```
 
 ---
 
 ## 3. Cloner le projet et préparer l'environnement Python
 
-```powershell
+```bash
 git clone https://github.com/Helmisoudana/InterviewMate.git
 cd InterviewMate
-python -m venv venv
+python3.12 -m venv venv
 ```
 
-**Activer le venv** — la commande diffère selon le terminal :
+**Activer le venv** :
 
-CMD :
-```cmd
-venv\Scripts\activate.bat
+bash / zsh :
+```bash
+source venv/bin/activate
 ```
 
-PowerShell :
-```powershell
-venv\Scripts\Activate.ps1
+fish :
+```fish
+source venv/bin/activate.fish
 ```
 
-> Si PowerShell refuse d'exécuter le script (erreur de policy
-> d'exécution), lance une fois :
-> ```powershell
-> Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-> ```
+> Contrairement à PowerShell, aucune policy d'exécution ne bloque
+> l'activation sous Linux — le script s'exécute directement.
 
-**Installer les dépendances :**
-```powershell
+**Installer les dépendances** — identique sur les deux distributions
+une fois le venv activé :
+```bash
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
@@ -111,15 +137,35 @@ pip install -r requirements.txt
 ## 4. Base de données PostgreSQL
 
 ### 4.1 Installation
-Télécharger l'installateur officiel Windows sur
-[postgresql.org/download/windows](https://www.postgresql.org/download/windows/),
-installer avec les options par défaut. Retenir le mot de passe défini
-pour l'utilisateur `postgres` (dans notre `.env` de référence,
-c'est `admin123`).
+
+Ubuntu :
+```bash
+sudo apt update
+sudo apt install -y postgresql postgresql-contrib
+sudo systemctl enable --now postgresql
+```
+
+openSUSE :
+```bash
+sudo zypper install -y postgresql postgresql-server postgresql-contrib
+sudo systemctl enable --now postgresql
+```
+> Sur openSUSE, la première initialisation du cluster peut nécessiter
+> `sudo /usr/lib/postgresql*/bin/initdb -D /var/lib/pgsql/data` si
+> `systemctl start postgresql` échoue au premier lancement — inutile
+> sur Ubuntu, où le paquet initialise déjà un cluster par défaut.
+
+**Définir le mot de passe de l'utilisateur `postgres`** (identique sur
+les deux distributions, PostgreSQL s'administre via `psql`, pas via le
+gestionnaire de paquets) :
+```bash
+sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'admin123';"
+```
+Dans notre `.env` de référence, ce mot de passe est `admin123`.
 
 ### 4.2 Créer la base
-```powershell
-psql -U postgres
+```bash
+sudo -u postgres psql
 ```
 Puis, dans le prompt `psql` :
 ```sql
@@ -187,27 +233,32 @@ CREATE TABLE IF NOT EXISTS rapports_scoring (
 
 Sauvegarde ce bloc dans un fichier, par exemple `schema_complet.sql`,
 puis exécute-le :
-```powershell
-psql -U postgres -d interviewmate_db -f schema_complet.sql
+```bash
+psql -U postgres -h localhost -d interviewmate_db -f schema_complet.sql
 ```
+> `-h localhost` force l'authentification par mot de passe plutôt que
+> l'authentification `peer` par défaut de PostgreSQL sur Linux (qui
+> exige que l'utilisateur système et l'utilisateur PostgreSQL portent le
+> même nom) — sans ce flag, la commande peut échouer même avec le bon
+> mot de passe.
 
 > Si le projet possède déjà des fichiers de migration numérotés dans
 > `storage/infrastructure/migrations/`, préfère les lancer dans l'ordre
 > plutôt que ce script unique :
-> ```powershell
-> psql -U postgres -d interviewmate_db -f storage/infrastructure/migrations/001_xxx.sql
-> psql -U postgres -d interviewmate_db -f storage/infrastructure/migrations/002_create_rapports_scoring.sql
+> ```bash
+> psql -U postgres -h localhost -d interviewmate_db -f storage/infrastructure/migrations/001_xxx.sql
+> psql -U postgres -h localhost -d interviewmate_db -f storage/infrastructure/migrations/002_create_rapports_scoring.sql
 > ```
 
 ### 4.4 Vérifier
 
-```powershell
-psql -U postgres -d interviewmate_db -c "\dt"
+```bash
+psql -U postgres -h localhost -d interviewmate_db -c "\dt"
 ```
 Doit lister : `entretiens`, `echanges`, `rapports_scoring`.
 
-```powershell
-psql -U postgres -d interviewmate_db -c "\d rapports_scoring"
+```bash
+psql -U postgres -h localhost -d interviewmate_db -c "\d rapports_scoring"
 ```
 Pour inspecter une table en détail (colonnes, types, contraintes,
 clés étrangères).
@@ -225,9 +276,9 @@ clés étrangères).
 
 ### 5.2 La commande
 
-Sous Windows, l'équivalent de `cp` est `copy` :
-```powershell
-copy .env.example .env
+Identique sur Ubuntu et openSUSE :
+```bash
+cp .env.example .env
 ```
 
 Ouvre ensuite `.env` avec ton éditeur et remplis chaque valeur.
@@ -272,17 +323,26 @@ Ouvre ensuite `.env` avec ton éditeur et remplis chaque valeur.
 ## 6. Installer et faire tourner Ollama
 
 ### 6.1 Installation
-Télécharger et installer depuis [ollama.com](https://ollama.com/download/windows).
-Une fois installé, Ollama tourne en service d'arrière-plan
-automatiquement — pas besoin de lancer `ollama serve` manuellement.
+
+Identique sur Ubuntu et openSUSE — Ollama fournit un script
+d'installation universel qui détecte la distribution :
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+Une fois installé, Ollama tourne comme service `systemd`
+(`ollama.service`) en arrière-plan automatiquement — pas besoin de
+lancer `ollama serve` manuellement. Vérifier avec :
+```bash
+systemctl status ollama
+```
 
 ### 6.2 Télécharger un modèle
-```powershell
+```bash
 ollama pull llama3
 ```
 
 ### 6.3 Vérifier
-```powershell
+```bash
 ollama list
 ```
 Le nom affiché dans la colonne `NAME` (ex: `llama3:latest`) doit
@@ -329,15 +389,20 @@ MODEL=llama3
 ## 9. Modèles ASR (Sherpa)
 
 ### 9.1 Télécharger
-```powershell
-cd models\sherpa
-curl.exe -L -o nom-du-modele.tar.bz2 https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/nom-du-modele.tar.bz2
+
+Identique sur Ubuntu et openSUSE — `curl` fonctionne nativement sur les
+deux distributions (pas d'alias piégeux comme sous PowerShell) :
+```bash
+mkdir -p models/sherpa
+cd models/sherpa
+curl -L -o nom-du-modele.tar.bz2 https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/nom-du-modele.tar.bz2
 ```
 
 ### 9.2 Décompresser
-```powershell
+```bash
 tar xvf nom-du-modele.tar.bz2
-del nom-du-modele.tar.bz2
+rm nom-du-modele.tar.bz2
+cd ../..
 ```
 
 ### 9.3 Configurer le `.env`
@@ -350,16 +415,11 @@ DECODER=models/sherpa/sherpa-onnx-streaming-zipformer-fr-2023-04-14/decoder-epoc
 JOINER=models/sherpa/sherpa-onnx-streaming-zipformer-fr-2023-04-14/joiner-epoch-29-avg-9-with-averaged-model.int8.onnx
 ```
 
-> ⚠️ N'utilise **pas** `curl` seul (sans `.exe`) en PowerShell : c'est un
-> alias vers `Invoke-WebRequest`, qui n'accepte pas les mêmes options
-> (`-L`, `-o`) que le vrai `curl`. Toujours écrire `curl.exe` sous
-> PowerShell.
-
 ---
 
 ## 10. Lancer le serveur
 
-```powershell
+```bash
 python -m gateway.server
 ```
 
@@ -376,8 +436,10 @@ Une variable attendue dans `.env` est absente ou mal nommée. Vérifier
 que `.env` existe bien à la racine du projet (là où la commande est
 lancée) et que la variable manquante y figure exactement avec ce nom.
 
-**`Invoke-WebRequest : Impossible de trouver un paramètre correspondant au nom «L»`**
-`curl` a été appelé en PowerShell sans `.exe` — utiliser `curl.exe`.
+**`bash: ollama: command not found` après installation**
+Le script d'installation ajoute Ollama dans `/usr/local/bin`, mais le
+shell courant n'a pas relu son `PATH`. Ouvrir un nouveau terminal, ou
+lancer `hash -r` (bash) pour forcer la relecture.
 
 **`TypeError: XxxUseCase.executer() missing 1 required positional argument`**
 Une signature de méthode a changé côté d'un fichier (souvent après un
@@ -394,10 +456,22 @@ Le script lancé ne charge pas le `.env` — vérifier qu'il contient bien
 `from dotenv import load_dotenv` suivi de `load_dotenv()` tout en haut du
 fichier, et que la commande est lancée depuis la racine du projet.
 
-**`psql: error: ... authentification par mot de passe échouée`**
-Mot de passe PostgreSQL incorrect au moment du login — vérifier
-`DB_PASSWORD` dans `.env` contre le vrai mot de passe défini à
-l'installation.
+**`psql: error: connection to server ... failed: FATAL: Peer authentication failed`**
+Typique sous Linux (absent sous Windows) : `psql -U postgres` sans
+`-h localhost` tente l'authentification `peer`, qui compare
+l'utilisateur système courant à l'utilisateur PostgreSQL — ça échoue si
+tu n'es pas connecté en tant que `postgres`. Ajouter `-h localhost` pour
+forcer l'authentification par mot de passe, comme dans toutes les
+commandes `psql` de ce tuto.
+
+**`Job for postgresql.service failed` au premier démarrage (surtout openSUSE)**
+Le cluster PostgreSQL n'a pas été initialisé. Lancer
+`sudo /usr/lib/postgresql*/bin/initdb -D /var/lib/pgsql/data` puis
+`sudo systemctl start postgresql`.
+
+**`Permission denied` en exécutant un script après `git clone`**
+Les droits d'exécution ne sont pas toujours conservés lors d'un clone.
+Rendre le script exécutable avec `chmod +x nom_du_script.sh`.
 
 ---
 
@@ -446,23 +520,37 @@ architecture détaillée et son propre point d'entrée de test isolé
 - `scoring/README.md`
 - `storage/README.md`
 - `tts/README.md`
-- `asr/README.md` 
-- `gateway/README.md` 
+- `asr/README.md`
+- `gateway/README.md`
 
 ---
 
-## 15. Pièges Windows spécifiques
+## 15. Pièges Linux spécifiques
 
-- **CMD vs PowerShell vs Git Bash** : privilégier un seul terminal pour
-  tout le setup (ce tuto utilise PowerShell). Les commandes
-  d'activation du `venv` et certains alias (`curl`, `del` vs `rm`)
-  diffèrent d'un terminal à l'autre — mélanger les deux est une source
-  d'erreurs fréquente.
-- **Chemins avec espaces ou accents** : un chemin de projet du type
-  `C:\Users\nom\OneDrive - Mon Organisation\Bureau\InterviewMate`
-  fonctionne, mais toujours entourer le chemin de guillemets dans les
-  commandes (`cd "chemin avec espaces"`), sinon certaines commandes le
-  découpent au premier espace.
-- **`curl` sans `.exe` en PowerShell** : c'est un alias vers
-  `Invoke-WebRequest`, qui n'accepte pas `-L`/`-o` comme le vrai `curl`
-  — toujours écrire `curl.exe` explicitement.
+- **Ubuntu (`apt`) vs openSUSE (`zypper`)** : les noms de paquets ne
+  sont pas identiques d'une distribution à l'autre (`python3.12-venv`
+  sur Ubuntu, alors que le module `venv` est déjà dans `python312` sur
+  openSUSE). En cas d'erreur `ModuleNotFoundError: No module named
+  'venv'` ou équivalent, vérifier d'abord le nom exact du paquet Python
+  pour ta distribution plutôt que de supposer que la commande d'un
+  tuto générique s'applique telle quelle.
+- **Authentification PostgreSQL `peer` vs mot de passe** : sous Linux,
+  PostgreSQL utilise par défaut l'authentification `peer` en local
+  (basée sur l'utilisateur système), contrairement à Windows où
+  l'authentification par mot de passe est immédiate. Toujours ajouter
+  `-h localhost` aux commandes `psql` de ce tuto pour éviter les
+  `FATAL: Peer authentication failed`.
+- **Services `systemd`** : PostgreSQL et Ollama tournent comme services
+  `systemd` sur les deux distributions — `systemctl status <service>`,
+  `systemctl restart <service>` et `journalctl -u <service>` sont les
+  premiers réflexes en cas de souci, quelle que soit la distribution.
+- **Droits d'exécution** : contrairement à Windows, un script shell
+  cloné depuis Git peut perdre son bit exécutable — `chmod +x` avant de
+  le lancer si `Permission denied` apparaît.
+- **Firewall local (surtout openSUSE, `firewalld` actif par défaut)** :
+  si le port du serveur WebSocket (`8765` par défaut) n'est pas
+  joignable depuis une autre machine du réseau, vérifier
+  `sudo firewall-cmd --list-ports` et ouvrir le port si besoin
+  (`sudo firewall-cmd --add-port=8765/tcp --permanent && sudo firewall-cmd --reload`).
+  Ubuntu n'active généralement pas de pare-feu par défaut (`ufw` est
+  inactif tant qu'on ne l'active pas explicitement).

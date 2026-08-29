@@ -41,11 +41,11 @@ L'audio ne transite donc jamais par le Storage ni par l'Agent : seuls le texte (
 ### Architecture du module (hexagonale)
 
 
-![Architecture du module ](../Docs/gateway_architecture_modules_detail.webp)
+![Architecture du module ](../Docs/assets/gateway_architecture_modules_detail.webp)
 ### Pipeline d'un échange (audio → texte → réponse → audio)
 
 
-![Architecture du module ](../Docs/gateway_pipeline_sequence.png)
+![Architecture du module ](../Docs/assets/gateway_pipeline_sequence.png)
 ## Architecture (structure des dossiers)
 
 ```

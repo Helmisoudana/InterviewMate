@@ -17,7 +17,7 @@ inversement.
 
 ## Schéma
 
-![Architecture du module storage](../Docs/storage.webp)
+![Architecture du module storage](../Docs/assets/storage.webp)
 
 ## Déroulement d'usage type
 
@@ -112,7 +112,7 @@ autres, qui n'appelle jamais personne.
 
 ## Schéma de la base de données
 
-![Schéma des tables du module storage](../Docs/storage_db.webp)
+![Schéma des tables du module storage](../Docs/assets/storage_db.webp)
 
 Trois tables, toutes rattachées à `entretiens` :
 

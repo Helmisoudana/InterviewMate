@@ -100,7 +100,7 @@ règle de calcul de score n'existe côté application.
 
 ## Schéma
 
-![Architecture du module scoring](../Docs/scoring.webp)
+![Architecture du module scoring](../Docs/assets/scoring.webp)
 
 ## Architecture
 
