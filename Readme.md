@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Docs/assets/logo.webp" width="1000" alt="Logo Interview Mate">
+  <img src="Docs/assets/logo.webp" width="300" alt="Logo Interview Mate">
 </p>
 
 <h1 align="center">Interview Mate</h1>
@@ -136,8 +136,8 @@ Chaque module est indépendant, testable isolément et documenté séparément :
 À la fin de chaque entretien, le candidat reçoit un rapport structuré généré automatiquement par le module Scoring.
 
 <p align="center" style="display: flex; justify-content: center; gap: 20px;">
-  <img src="Docs/assets/page1.jpg" width="45%" alt="Exemple de rapport de scoring généré en fin d'entretien : notes par critère, points forts, axes d'amélioration">
-  <img src="Docs/assets/page2.jpg" width="45%" alt="Deuxième image exemple">
+  <img src="Docs/assets/page1.jpg" width="45%" alt="Exemple de rapport de scoring généré en fin d'entretien : page 1" style="border: 2px solid #000000;">
+  <img src="Docs/assets/page2.jpg" width="45%" alt="Exemple de rapport de scoring généré en fin d'entretien : page 2" style="border: 2px solid #000000;">
 </p>
 
 ## Installation
@@ -168,10 +168,6 @@ Les contributions à Interview Mate sont les bienvenues ! Que ce soit pour signa
 4. Pushez sur la branche (`git push origin feature/SuperFonctionnalite`)
 5. Ouvrez une **Pull Request**
 
-Voici le bloc mis à jour pour la section Auteurs & Contact, avec Helmi Soudana et Ahmed Naoui, incluant leurs icônes GitHub, LinkedIn et Email respectives.
-
-Tu peux remplacer la section ## Auteur & Contact de ton README par ce fragment :
-Markdown
 
 ## Auteurs & Contact
 
