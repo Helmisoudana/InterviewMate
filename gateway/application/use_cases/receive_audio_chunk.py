@@ -9,7 +9,7 @@ class ReceiveAudioChunkUseCase:
         self._asr_client = asr_client
         self._turn_detector = turn_detector
 
-    async def executer(self, session: GatewaySession, chunk: AudioChunk, silence_detecte: bool) -> None:
+    async def executer(self, session: GatewaySession, chunk: AudioChunk, silence_detecte: bool = False) -> None:
         if silence_detecte:
             session.marquer_silence()
         else:

@@ -38,10 +38,12 @@ export class GatewaySocket {
     this.callbacks = callbacks;
     this.status.set(reconnect ? 'reconnecting' : 'connecting');
 
+    console.log(`[GatewaySocket] Connexion WebSocket vers ${environment.wsUrl}`);
     this.ws = new WebSocket(environment.wsUrl);
     this.ws.binaryType = 'arraybuffer';
 
     this.ws.onopen = () => {
+      console.log('[GatewaySocket] Envoi du message d\'initialisation');
       const initMessage: GatewayInitMessage = reconnect
         ? { session_id: sessionId, reconnect: true }
         : { session_id: sessionId, reconnect: false, config };
@@ -57,12 +59,14 @@ export class GatewaySocket {
     };
 
     this.ws.onclose = (event: CloseEvent) => {
+      console.warn(`[GatewaySocket] Déconnecté (Code: ${event.code})`);
       this.status.set('closed');
       const reason = GATEWAY_CLOSE_REASONS[event.code] ?? event.reason ?? 'Connexion fermée.';
       this.callbacks.onClose?.(event.code, reason);
     };
 
     this.ws.onerror = (event: Event) => {
+      console.error('[GatewaySocket] Erreur réseau', event);
       this.status.set('error');
       this.callbacks.onError?.(event);
     };
@@ -77,6 +81,8 @@ export class GatewaySocket {
       return;
     }
 
+    console.log('[GatewaySocket] Message JSON reçu :', message.type);
+
     switch (message.type) {
       case 'session_ready':
         this.status.set('ready');
@@ -90,13 +96,14 @@ export class GatewaySocket {
         this.callbacks.onTranscription?.(message.text);
         break;
       case 'agent_message':
+      case 'agent_question':
         this.callbacks.onAgentMessage?.(message.text);
         break;
       case 'agent_speaking':
         this.callbacks.onAgentSpeakingStateChange?.(message.speaking);
         break;
       default:
-        console.warn('[GatewaySocket] type inconnu ignoré :', message);
+        console.warn('[GatewaySocket] Type inconnu ignoré :', message);
     }
   }
 
@@ -108,6 +115,7 @@ export class GatewaySocket {
 
   close(): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
+      console.log('[GatewaySocket] Fermeture volontaire de la connexion');
       this.ws.send(JSON.stringify({ type: 'close' }));
     }
     this.ws?.close(GatewayCloseCode.NORMAL);

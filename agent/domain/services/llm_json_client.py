@@ -1,77 +1,68 @@
 import json
 import logging
-import re
 from agent.domain.ports.llm_port import LLMPort
 from agent.domain.value_objects.message import Message
-
+from shared.domain.exceptions import ReponseLLMInvalide
 logger = logging.getLogger("llm_json_client")
 
-RESULTAT_PAR_DEFAUT = {
-    "question": "",
-    "difficulte_suivante": "moyen",
-    "changement_phase": False,
-    "phase_suivante": None,
-    "comportement_inapproprie": False,
-    "entretien_termine": False,
+
+
+
+
+SCHEMA_REPONSE = {
+    "type": "object",
+    "properties": {
+        "question": {"type": "string"},
+        "qualite_reponse_precedente": {
+            "type": "string",
+            "enum": ["faible", "correcte", "excellente"],
+        },
+        "difficulte_suivante": {
+            "type": "string",
+            "enum": ["facile", "moyen", "difficile"],
+        },
+        "changement_phase": {"type": "boolean"},
+        "phase_suivante": {"type": "string"},
+        "comportement_inapproprie": {"type": "boolean"},
+        "entretien_termine": {"type": "boolean"},
+    },
+    "required": [
+        "question",
+        "difficulte_suivante",
+        "changement_phase",
+        "comportement_inapproprie",
+        "entretien_termine",
+    ],
 }
 
-MESSAGE_SECOURS = (
-    "Pouvez-vous reformuler ou préciser votre réponse, s'il vous plaît ?"
-)
 
-_BLOC_CODE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
-_PREMIER_OBJET = re.compile(r"\{.*\}", re.DOTALL)
-_CHAMP_QUESTION = re.compile(r'"question"\s*:\s*"((?:[^"\\]|\\.)*)"', re.DOTALL)
-
-
-def _nettoyer(texte: str) -> str:
-    match = _BLOC_CODE.search(texte)
-    return match.group(1) if match else texte
-
-
-def _extraire_json(texte: str) -> dict | None:
-    candidats = [texte, _nettoyer(texte)]
-    match_objet = _PREMIER_OBJET.search(texte)
-    if match_objet:
-        candidats.append(match_objet.group(0))
-
-    for candidat in candidats:
-        try:
-            return json.loads(candidat)
-        except json.JSONDecodeError:
-            continue
-
-    reparation = texte.rstrip()
-    if reparation.count('"') % 2 == 1:
-        reparation += '"'
-    ouvertes = reparation.count("{") - reparation.count("}")
-    if ouvertes > 0:
-        reparation += "}" * ouvertes
-        try:
-            return json.loads(reparation)
-        except json.JSONDecodeError:
-            pass
-    return None
+async def _generer(llm: LLMPort, messages: list[Message]) -> str:
+    texte = ""
+    async for token in llm.stream_completion(messages, response_schema=SCHEMA_REPONSE):
+        texte += token
+    return texte
 
 
 async def appeler_llm_json(llm: LLMPort, messages: list[Message]) -> dict:
-    texte = ""
-    async for token in llm.stream_completion(messages):
-        texte += token
-
-    resultat = _extraire_json(texte)
-    if resultat is not None and isinstance(resultat.get("question"), str):
-        return resultat
-
-
-    logger.warning("Réponse LLM non-JSON ou incomplète, tentative d'extraction ciblée : %r", texte[:300])
-    match_question = _CHAMP_QUESTION.search(texte)
-    resultat = dict(RESULTAT_PAR_DEFAUT)
-    if match_question:
+    for tentative in range(2):
+        texte = await _generer(llm, messages)
         try:
-            resultat["question"] = json.loads(f'"{match_question.group(1)}"')
+            resultat = json.loads(texte)
         except json.JSONDecodeError:
-            resultat["question"] = MESSAGE_SECOURS
-    else:
-        resultat["question"] = MESSAGE_SECOURS
-    return resultat
+            logger.warning(
+                "Tentative %d/2 : réponse LLM non-JSON malgré le schéma structuré : %r",
+                tentative + 1, texte[:300],
+            )
+            continue
+
+        if isinstance(resultat, dict) and isinstance(resultat.get("question"), str):
+            return resultat
+
+        logger.warning(
+            "Tentative %d/2 : JSON valide mais forme inattendue : %r",
+            tentative + 1, resultat,
+        )
+
+    raise ReponseLLMInvalide(
+        "Le LLM n'a pas produit de réponse exploitable après 2 tentatives."
+    )
