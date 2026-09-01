@@ -1,59 +1,168 @@
-# Frontend
+<div align="center">
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.16.
+# 🎙️ InterviewMate — Frontend
 
-## Development server
+**Simulateur d'entretiens d'embauche assisté par IA, en temps réel.**
 
-To start a local development server, run:
+![Angular](https://img.shields.io/badge/Angular-21-DD0031?style=flat-square&logo=angular&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![RxJS](https://img.shields.io/badge/RxJS-7.8-B7178C?style=flat-square&logo=reactivex&logoColor=white)
+![Vitest](https://img.shields.io/badge/Tests-Vitest-6E9F18?style=flat-square&logo=vitest&logoColor=white)
+![License](https://img.shields.io/badge/status-en%20développement-yellow?style=flat-square)
 
-```bash
-ng serve
+</div>
+
+---
+
+## ✨ À propos
+
+**InterviewMate** est une application Angular qui simule des entretiens d'embauche face à un agent IA, avec **audio et vidéo en temps réel** (WebSocket), transcription en direct, et génération d'un rapport de fin d'entretien.
+
+L'utilisateur configure son entretien (poste, langue, durée, difficulté), effectue un test caméra/micro, puis échange en direct avec l'agent avant de recevoir une synthèse de sa performance.
+
+---
+
+## 📸 Aperçu de l'application
+
+
+| Connexion | Configuration de l'entretien |
+|:---:|:---:|
+| ![Connexion](../Docs/assets/screenshot-cnx.png) | ![Setup](../Docs/assets/screenshot-setup.png) |
+
+
+| Vérification matériel (Pre-call) | Salle d'entretien (live) |
+|:---:|:---:|
+| ![Pre-call](../Docs/assets/screen1.png) | ![Interview Room](../Docs/assets/screenshot-entretien.png) |
+
+| Fin d'entretien | Rapport & Historique |
+|:---:|:---:|
+| ![Fin](../Docs/assets/screenshot-fin.png) | ![Historique](../Docs/assets/screenshot-historique.png) |
+
+---
+
+## 🏗️ Architecture
+
+Architecture en couches typique Angular : **pages (features)** → **services coeur (core/)** → **composants partagés (shared/)**, avec deux canaux de communication backend : **WebSocket** pour le flux d'entretien en temps réel, et **REST** pour l'authentification et l'historique.
+
+![Architecture InterviewMate](docs/interviewmate_frontend_architecture.png)
+
+**Points clés :**
+- 🔌 **`core/gateway`** — gère la connexion WebSocket avec l'agent IA (init de session, reconnexion, messages entrants/sortants, codes de fermeture).
+- 🎥 **`core/media`** — encapsule `getUserMedia` pour le flux audio/vidéo (micro, caméra, activation/désactivation des pistes).
+- 🔐 **`core/auth`** — gestion de l'état d'authentification via `signal`, guard de routes et interceptor HTTP.
+- 🌐 **`core/api`** — appels REST vers le backend (historique des entretiens, échanges).
+- 🧱 **`shared/ui`** — bibliothèque de composants réutilisables (avatar, badges de statut, boutons de contrôle d'appel, modales).
+- 🗂️ **`interview-room.store.ts`** — état local de la salle d'entretien (phase, transcription, statut de connexion) piloté par signals Angular.
+
+---
+
+## 🧭 Parcours utilisateur
+
+```
+Connexion / Inscription
+        │
+        ▼
+     Accueil ──── Historique des entretiens
+        │
+        ▼
+Configuration (poste, langue, durée, difficulté)
+        │
+        ▼
+Pre-call (test micro / caméra)
+        │
+        ▼
+Salle d'entretien (WebSocket temps réel + IA)
+        │
+        ▼
+Fin d'entretien ──── Rapport détaillé
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+---
 
-## Code scaffolding
+## 📁 Structure du projet
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
+```
+src/app/
+├── core/                     # Services transverses (singletons)
+│   ├── api/                  # Client REST (historique, échanges)
+│   ├── auth/                 # Auth service, guard, interceptor
+│   ├── gateway/               # Client WebSocket temps réel
+│   ├── layout/                # App Shell (layout principal)
+│   └── media/                  # Gestion micro / caméra
+├── features/                  # Pages de l'application (lazy-loaded)
+│   ├── auth/                   # Login / Register
+│   ├── home/                    # Accueil
+│   ├── interview-setup/         # Configuration de l'entretien
+│   ├── pre-call/                 # Vérification du matériel
+│   ├── interview-room/            # Salle d'entretien (live)
+│   ├── interview-end/              # Fin d'entretien
+│   ├── interview-report/            # Rapport de performance
+│   └── interview-history/            # Historique des entretiens
+└── shared/ui/                  # Composants UI réutilisables
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+---
+
+## 🚀 Démarrage rapide
+
+### Prérequis
+
+- Node.js (LTS recommandé)
+- npm `11.11.0` ou supérieur
+
+### Installation
 
 ```bash
-ng generate --help
+npm install
 ```
 
-## Building
-
-To build the project run:
+### Lancer en développement
 
 ```bash
-ng build
+npm start
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+L'application est servie sur `http://localhost:4200/`.
 
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+### Build de production
 
 ```bash
-ng test
+npm run build
 ```
 
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
+### Lancer les tests
 
 ```bash
-ng e2e
+npm test
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+---
 
-## Additional Resources
+## 🛣️ Routes principales
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+| Route | Description |
+|---|---|
+| `/` | Connexion |
+| `/register` | Inscription |
+| `/home` | Accueil |
+| `/home/history` | Historique des entretiens |
+| `/setup` | Configuration de l'entretien |
+| `/pre-call` | Vérification du matériel |
+| `/interview` | Salle d'entretien (protégée par un guard de sortie) |
+| `/interview/end` | Fin d'entretien |
+
+---
+
+## 🛠️ Stack technique
+
+- **Angular 21** — Standalone Components, Signals, lazy loading
+- **RxJS** — flux réactifs et gestion des WebSockets
+- **TypeScript 5.9**
+- **Vitest** — tests unitaires
+- **Prettier** — formatage du code
+
+---
+
+## 📄 Licence
+
+Projet interne — à adapter selon vos besoins.
